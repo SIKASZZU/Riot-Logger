@@ -1,0 +1,112 @@
+import win32gui
+from tkinter import Tk, Toplevel, ttk, StringVar
+from constants import BG_COLOR, FG_COLOR, button_color, button_hover_color, text_color, GRAYISH_BG  # Import the constants
+import customtkinter as ctk
+
+
+class WindowSelector:
+    def __init__(self):
+        self.selected_hwnd = None
+        self.selected_title = None
+
+    @staticmethod
+    def get_open_windows():
+        """Get list of visible windows with titles"""
+        windows = []
+
+        def callback(hwnd, _):
+            if win32gui.IsWindowVisible(hwnd):
+                title = win32gui.GetWindowText(hwnd)
+                if title:
+                    windows.append((hwnd, title))
+
+        win32gui.EnumWindows(callback, None)
+        return windows
+
+    def select_window(self, parent_app):
+        """Show window selection dialog"""
+        windows = self.get_open_windows()
+
+        # Create a Toplevel window instead of Tk for it to be a child window
+        select_root = Toplevel(parent_app.root)
+        select_root.title("Select Target Window")
+
+        # Set the dimensions of the window
+        select_root.geometry("320x100")  # Adjust the size as needed
+        select_root.configure(bg=BG_COLOR)  # Set the background color
+
+        # Make the window non-resizable
+        select_root.resizable(False, False)
+
+        # Get the dimensions of the parent window (to center the selector window)
+        main_window_width = parent_app.root.winfo_width()
+        main_window_height = parent_app.root.winfo_height()
+
+        # Calculate the position to center the window
+        x_position = parent_app.root.winfo_x() + (main_window_width // 2) - (320 // 2)
+        y_position = parent_app.root.winfo_y() + (main_window_height // 2) - (100 // 2)
+
+        # Set the position of the window
+        select_root.geometry(f"320x100+{x_position}+{y_position}")
+
+        # Create the combobox for selecting the window
+        selected_window = StringVar(select_root)
+
+        combobox = ctk.CTkComboBox(master=select_root, values=[title for hwnd, title in windows], variable=selected_window, width=275)
+        combobox.pack(pady=10)
+
+        # Set the combobox background color to orange, text color to white
+        combobox.configure(
+            fg_color=button_hover_color,  # Teksti background
+            button_color=button_color,  # Buttoni background
+            text_color=text_color,  # Texti värv
+            state='readonly',  # Ei lase kirjutada
+            border_color=button_hover_color,  # Borderi värv
+            height=24,  # Set height for the entire combobox
+            dropdown_font=("Arial", 12),  # Optional: adjust dropdown font for consistency
+            corner_radius=32
+        )
+
+        # Define what happens when the user selects a window
+        def on_select():
+            for hwnd, title in windows:
+                print(selected_window.get())
+                if title == selected_window.get():
+                    self.selected_hwnd = hwnd
+                    self.selected_title = title
+                    parent_app.set_target_window(hwnd, title)
+                    break
+            select_root.destroy()
+
+        # Add the buttons below the dropdown
+        button_frame = ttk.Frame(select_root, padding=10)
+        button_frame.pack()
+
+        # Create the buttons with consistent styling
+        select_target_button = ctk.CTkButton(button_frame,
+                                             text="Confirm",
+                                             command=on_select,
+                                             hover_color=button_hover_color,
+                                             fg_color=button_color,
+                                             height=45,
+                                             width=120)
+
+        select_target_button.pack(side="left", padx=5)
+
+        # Create the buttons with consistent styling
+        close_button = ctk.CTkButton(button_frame,
+                                     text="Cancel",
+                                     command=select_root.destroy,
+                                     hover_color=button_hover_color,
+                                     fg_color=button_color,
+                                     height=45,
+                                     width=120)
+
+        close_button.pack(side="left", padx=5)
+
+        # Ensure the prompt window appears on top and wait until it is closed
+        select_root.grab_set()  # Makes sure the Toplevel window is in focus
+        select_root.wait_window(select_root)  # Wait until this window is closed
+
+    def get_selected_window(self):
+        return self.selected_hwnd, self.selected_title
