@@ -1,14 +1,20 @@
 import subprocess
 import pygetwindow as gw
 import pyautogui
-import tkinter as tk
 import time
+
+from window import activate_window
 
 from acc_details import acc_details  # Ensure acc_details is a dictionary with account info
 
 ################# open riot client #################
-subprocess.Popen(r"C:\Riot Games\Riot Client\RiotClientServices.exe")
+launch_options = '--launch-product=league_of_legends --launch-patchline=live'
+subprocess.Popen(rf"C:\Riot Games\Riot Client\RiotClientServices.exe {launch_options}")
 print('Opening Riot Client\n')
+
+################# Window, select account #################
+
+account_selected = activate_window()
 
 ################# check if client opened #################
 while True:
@@ -22,26 +28,6 @@ while True:
 
 print('Riot Client is open\n')
 
-################# Window, select account #################
-
-account_selected = None
-def on_button_click(key):
-    global account_selected
-    account_selected = key
-    root.destroy()
-
-root = tk.Tk()
-root.title("Account Details Keys")
-
-label = tk.Label(root, text="Choose account")
-label.pack(pady=10)
-
-# Create buttons for each account in acc_details dictionary
-for key in acc_details.keys():
-    button = tk.Button(root, text=key, command=lambda key=key: on_button_click(key))
-    button.pack(pady=5)
-
-root.mainloop()
 
 print('ACCOUNT', account_selected, '\n')
 username = acc_details[account_selected][0]
