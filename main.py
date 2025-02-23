@@ -5,18 +5,41 @@ import time
 
 from window import activate_window
 
-from acc_details import acc_details  # Ensure acc_details is a dictionary with account info
+################# Read acc_details.txt #################
 
-################# open riot client #################
+def read_acc_details():
+    """ txt file has to be acc_details.txt and a new line == new account
+        acc with format: name, accname, password.    """
+
+    accounts = []
+
+    for row in open('acc_details.txt'):
+        row = row.strip()
+        values = row.split(',')
+        
+        username = values[0]
+        account_name = values[1]
+        account_pass = values[2]
+
+        accounts.append((username, account_name, account_pass))
+
+    return accounts
+
+accounts_list = read_acc_details()
+print(accounts_list)
+
+################# Open riot client #################
+
 launch_options = '--launch-product=league_of_legends --launch-patchline=live'
 subprocess.Popen(rf"C:\Riot Games\Riot Client\RiotClientServices.exe {launch_options}")
 print('Opening Riot Client\n')
 
-################# Window, select account #################
+################# Create tk window #################
 
-account_selected = activate_window()
+selected_account = activate_window(accounts_list)
+account_name, account_pass = selected_account
 
-################# check if client opened #################
+################# Check if client opened #################
 while True:
     client_opened = False
     windows = gw.getAllTitles()
@@ -28,10 +51,6 @@ while True:
 
 print('Riot Client is open\n')
 
-
-print('ACCOUNT', account_selected, '\n')
-username = acc_details[account_selected][0]
-passcode = acc_details[account_selected][1]
 
 ################# Active window Riot Client #################
 riot_window = gw.getWindowsWithTitle('Riot Client')[0]  # Find the first window with the title 'Riot Client'
@@ -54,9 +73,9 @@ adjusted_login_button_xy = (left + login_button_xy[0], top + login_button_xy[1])
 
 ################# Clicking #################
 pyautogui.click(adjusted_user_xy)
-pyautogui.typewrite(username)
+pyautogui.typewrite(account_name)
 
 pyautogui.click(adjusted_pass_xy)
-pyautogui.typewrite(passcode)
+pyautogui.typewrite(account_pass)
 
 pyautogui.click(adjusted_login_button_xy)
