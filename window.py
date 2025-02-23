@@ -16,6 +16,7 @@ def on_submit(root, entry):
 
 def activate_window(accounts_list):
     global user_input_value
+    global account_selected
 
     ################# ACCS #################
     acc_details = {}
@@ -81,5 +82,6 @@ def activate_window(accounts_list):
 
     # Run the Tkinter event loop
     root.mainloop()
+    account_selected = acc_details[account_selected]
     
     return account_selected
