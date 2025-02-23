@@ -2,6 +2,9 @@ import subprocess
 import pygetwindow as gw
 import pyautogui
 import time
+import win32api
+import win32gui
+import win32con
 
 from window import activate_window
 
@@ -35,8 +38,8 @@ subprocess.Popen(rf"C:\Riot Games\Riot Client\RiotClientServices.exe {launch_opt
 print('Opening Riot Client\n')
 
 ################# Create tk window #################
-
 selected_account = activate_window(accounts_list)
+print(selected_account)
 account_name, account_pass = selected_account
 
 ################# Check if client opened #################
