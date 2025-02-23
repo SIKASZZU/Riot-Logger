@@ -40,6 +40,7 @@ selected_account = activate_window(accounts_list)
 account_name, account_pass = selected_account
 
 ################# Check if client opened #################
+
 while True:
     client_opened = False
     windows = gw.getAllTitles()
@@ -52,13 +53,16 @@ while True:
 print('Riot Client is open\n')
 
 
-################# Active window Riot Client #################
-riot_window = gw.getWindowsWithTitle('Riot Client')[0]  # Find the first window with the title 'Riot Client'
-riot_window.activate()  # Activate the window to bring it to the foreground
+################# Find Riot Client window (doesnt have to be focused) #################
+
+riot_window = gw.getWindowsWithTitle('Riot Client')[0]
+hwnd = riot_window._hWnd
+win32gui.SetForegroundWindow(hwnd)
 
 time.sleep(0.5)  # Optionally, give some time for the window to become active
 
 ################# Log into the account #################
+
 user_xy         = (200, 275)
 pass_xy         = (200, 320)
 login_button_xy = (200, 700)
@@ -72,10 +76,22 @@ adjusted_pass_xy = (left + pass_xy[0], top + pass_xy[1])
 adjusted_login_button_xy = (left + login_button_xy[0], top + login_button_xy[1])
 
 ################# Clicking #################
-pyautogui.click(adjusted_user_xy)
+
+def send_click(hwnd, screen_x, screen_y):
+    # Convert screen coordinates to client coordinates
+    client_x, client_y = win32gui.ScreenToClient(hwnd, (screen_x, screen_y))
+    lParam = win32api.MAKELONG(client_x, client_y)
+    win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lParam)
+    win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, 0, lParam)
+
+send_click(hwnd, adjusted_user_xy[0], adjusted_user_xy[1])
+time.sleep(0.1)
 pyautogui.typewrite(account_name)
+time.sleep(0.1)
 
-pyautogui.click(adjusted_pass_xy)
+send_click(hwnd, adjusted_pass_xy[0], adjusted_pass_xy[1])
+time.sleep(0.1)
 pyautogui.typewrite(account_pass)
+time.sleep(0.1)
 
-pyautogui.click(adjusted_login_button_xy)
+send_click(hwnd, adjusted_login_button_xy[0], adjusted_login_button_xy[1])  # login button

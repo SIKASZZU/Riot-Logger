@@ -13,7 +13,6 @@ def on_button_click(root, key):
 def on_submit(root, entry):
     global user_input_value
     user_input_value = entry.get()
-    root.destroy()
 
 def activate_window(accounts_list):
     global user_input_value
@@ -77,10 +76,10 @@ def activate_window(accounts_list):
     user_input = tk.Entry(root, font=custom_font, width=25)
     user_input.pack(pady=5)
     
-    submit_button = tk.Button(root, text="Submit", command=lambda: on_submit(root, user_input), **button_style)
+    submit_button = tk.Button(root, text="Submit", command=lambda: on_submit(user_input), **button_style)
     submit_button.pack(pady=10)
 
     # Run the Tkinter event loop
     root.mainloop()
     
-    return user_input_value
+    return account_selected
