@@ -77,21 +77,18 @@ login_button_xy = (200, 700)
 print(riot_window.width, riot_window.height)
 if riot_window.width == normalized_size[0] and riot_window.height == normalized_size[1]:
     print('Window is normal sized')
-    user_xy = (200, 275)
-    pass_xy = (200, 320)
-    login_button_xy = (200, 700)
 
 elif riot_window.width < normalized_size[0] and riot_window.height < normalized_size[1]:
     print('Window is undersized')
-    user_xy = scale_coords((200, 275), riot_window, normalized_size)
-    pass_xy = scale_coords((200, 320), riot_window, normalized_size)
-    login_button_xy = scale_coords((200, 700), riot_window, normalized_size)
+    user_xy = scale_coords(user_xy, riot_window, normalized_size)
+    pass_xy = scale_coords(pass_xy, riot_window, normalized_size)
+    login_button_xy = scale_coords(login_button_xy, riot_window, normalized_size)
 
 elif riot_window.width > normalized_size[0] and riot_window.height > normalized_size[1]:
     print('Window is oversized')
-    user_xy = scale_coords((200, 275), riot_window, normalized_size)
-    pass_xy = scale_coords((200, 320), riot_window, normalized_size)
-    login_button_xy = scale_coords((200, 700), riot_window, normalized_size)
+    user_xy = scale_coords(user_xy, riot_window, normalized_size)
+    pass_xy = scale_coords(pass_xy, riot_window, normalized_size)
+    login_button_xy = scale_coords(login_button_xy, riot_window, normalized_size)
 
 print(f"user_xy: {user_xy}")
 print(f"pass_xy: {pass_xy}")
