@@ -1,2 +1,0 @@
-public_name, account_name, account_password
-Scottien, Scottienname, pass
