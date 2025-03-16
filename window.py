@@ -76,7 +76,7 @@ def activate_window(accounts_list):
             f.write(f"{username}, {acc_name}, {password}\n")
         
         ctk.CTkButton(scrollable_frame, text=username, \
-                    command=lambda: on_button_click(root, (acc_name, password)), fg_color="#888888", hover_color="#666666").pack(pady=5, fill='x', padx=5)
+                    command=lambda: on_button_click(root, (acc_name, password)), fg_color="#888888", hover_color="#666666", width=370).pack(pady=5, fill='x', padx=5)
         entry_name.delete(0, 'end')
         entry_acc.delete(0, 'end')
         entry_pass.delete(0, 'end')

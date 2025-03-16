@@ -13,20 +13,20 @@ try:
     def read_acc_details():
         """ txt file has to be acc_details.txt and a new line == new account
             acc with format: name, accname, password.    """
+        
+        try:
+            open("acc_details.txt", "a").close()  # Creates the file if it doesn’t exist
+        except Exception as e:
+            print(f"Error creating acc_details.txt: {e}")
 
-        accounts = []
+        # Load existing accounts from file
+        try:
+            with open("acc_details.txt", "r") as f:
+                accounts_list = [tuple(line.strip().split(", ")) for line in f if line.strip()]
+        except FileNotFoundError:
+            accounts_list = []
 
-        for row in open('acc_details.txt'):
-            row = row.strip()
-            values = row.split(',')
-            
-            username = values[0]
-            account_name = values[1]
-            account_pass = values[2]
-
-            accounts.append((username, account_name, account_pass))
-
-        return accounts
+        return accounts_list
 
     accounts_list = read_acc_details()
     print(accounts_list)
