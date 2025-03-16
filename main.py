@@ -7,11 +7,6 @@ import win32gui
 import win32con
 from window import activate_window
 
-import jurigged
-
-jurigged.watch()
-
-
 try:
     ################# Read acc_details.txt #################
 
