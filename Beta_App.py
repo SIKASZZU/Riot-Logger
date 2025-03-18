@@ -69,12 +69,14 @@ def create_rounded_image(image_path, size, radius):
 
 
 class RoundedButton(QWidget):
-    def __init__(self, user_data, image_path, parent=None):
+    def __init__(self, user_data, image_path, parent=None, w=0, l=0):
         super().__init__(parent)
-        self.setFixedSize(400, 60)
 
-        w = random.randint(0, 1000)
-        l = random.randint(0, 1000)
+        width = 400
+        height = 50
+        radius = 10
+
+        self.setFixedSize(width, height)
         winrate = 0 if (w + l) == 0 else round((w / (w + l)) * 100)
 
         self.rank = random.choice(RANKS)
@@ -84,56 +86,72 @@ class RoundedButton(QWidget):
 
 
         # Load rounded image
-        self.bg_pixmap = create_rounded_image(image_path, (400, 60), 20)
+        self.bg_pixmap = create_rounded_image(image_path, (width, height), radius)
 
         # Background Label (Image)
         self.bg_label = QLabel(self)
         self.bg_label.setPixmap(self.bg_pixmap)
         self.bg_label.setScaledContents(True)
-        self.bg_label.setGeometry(0, 0, 400, 60)
+        self.bg_label.setGeometry(0, 0, width, height)
 
         # Account Name
         self.account_label = QLabel(self.account_name, self)
         self.account_label.setFont(QFont("Arial", 14))
-        self.account_label.setStyleSheet("color: white; background: transparent;")
-        self.account_label.setGeometry(10, 15, 250, 30)
+        self.account_label.setStyleSheet("color: gray; background: transparent;")
+        self.account_label.setGeometry(10, 15, 250, 20)
 
         # Winrate (Centered)
         self.winrate_label = QLabel(f"{w}W/{l}L {winrate:.1f}%", self)
         self.winrate_label.setFont(QFont("Arial", 10))
         self.winrate_label.setStyleSheet("color: gray; background: transparent;")
         self.winrate_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.winrate_label.setGeometry(260, 5, 140, 20)
+        self.winrate_label.setGeometry(260, 10, 140, radius)
 
         # Rank (Centered)
         self.rank_label = QLabel(self.rank, self)
         self.rank_label.setFont(QFont("Arial", 10))
         self.rank_label.setStyleSheet("color: gray; background: transparent;")
         self.rank_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.rank_label.setGeometry(260, 30, 140, 20)
+        self.rank_label.setGeometry(260, 30, 140, radius)
 
         # Invisible Clickable Button
         self.button = QPushButton("", self)
-        self.button.setGeometry(0, 0, 400, 60)
+        self.button.setGeometry(0, 0, width, height)
         self.button.setStyleSheet("background: transparent; border: none;")
         self.button.clicked.connect(self.on_click)
 
-        # Click effect
-        self.button.setStyleSheet(
-            """
-            QPushButton {
-                background: transparent; border: none;
-                border-radius: 20px;
 
-            }
-            QPushButton:pressed {
-                background: rgba(255, 255, 255, 30); /* Light click effect */
-            }
+        self.button.setStyleSheet(
+            f"""
+            QPushButton {{
+                background: transparent;
+                border-radius: {radius}px;
+                border: none;
+            }}
+            QPushButton:hover {{
+                background: rgba(150, 150, 150, 20);
+            }}
+            QPushButton:pressed {{
+                background: rgba(150, 150, 150, 30);
+            }}
             """
         )
 
         self.button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))  # Set cursor to hand
         self.button.clicked.connect(self.on_click)
+
+    def enterEvent(self, event):
+        """ Change account label color to white on hover """
+        self.account_label.setStyleSheet("color: #A5A2A3; background: transparent;")
+        self.winrate_label.setStyleSheet("color: #A5A2A3; background: transparent;")
+        self.rank_label.setStyleSheet("color: #A5A2A3; background: transparent;")
+
+    def leaveEvent(self, event):
+        """ Change account label color back to gray when not hovered """
+        self.account_label.setStyleSheet("color: gray; background: transparent;")
+        self.winrate_label.setStyleSheet("color: gray; background: transparent;")
+        self.rank_label.setStyleSheet("color: gray; background: transparent;")
+
 
     def on_click(self):
         print(f"Username: {self.username}, Password: {self.password}")
@@ -142,17 +160,20 @@ class RoundedButton(QWidget):
 class MainApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PyQt6 User Profiles")
-        self.setGeometry(100, 100, 450, 500)
+        self.setWindowTitle("Riot Logger")
+        self.setGeometry(100, 100, 100, 100)
 
         # Set background color
         self.setStyleSheet("background-color: #242424; color: white;")
 
         layout = QVBoxLayout(self)
 
+        w = random.randint(0, 1000)  # WINS
+        l = random.randint(0, 1000)  # LOSSES
+
         # Generate profile buttons for each user
         for user in users:
-            layout.addWidget(RoundedButton(user, "bronze.png"))
+            layout.addWidget(RoundedButton(user, "bronze.png"), w=w, l=l)
 
         self.setLayout(layout)
 
