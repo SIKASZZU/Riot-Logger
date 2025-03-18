@@ -5,7 +5,7 @@ from PyQt6.QtGui import QPixmap, QFont, QCursor
 from PyQt6.QtCore import Qt
 from PIL import Image, ImageDraw
 
-from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QLineEdit, QVBoxLayout, QHBoxLayout
+from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QLineEdit, QVBoxLayout, QHBoxLayout, QScrollArea
 from PyQt6.QtGui import QCursor, QFont
 from PyQt6.QtCore import Qt, QPropertyAnimation, QSize
 
@@ -47,7 +47,8 @@ RANKS = [
 
 # User data dictionary
 users = [
-    {"riot_id": "SikzuOnRäigeAutist", "tagline": "Asia", "username": "darkwizard", "password": "avadaKedavra"},
+    {'riot_id': 'SikzuOnRäigeAutist', 'tagline': 'Asia', 'username': 'darkwizard', 'password': 'avadaKedavra'},
+    {'riot_id': 'asd', 'tagline': 'asd', 'username': 'asd', 'password': 'asd'}
 ]
 
 
@@ -154,6 +155,7 @@ class AccountButton(QWidget):
 class CreateAccount(QWidget):
     def __init__(self, width, height, radius, parent=None):
         super().__init__(parent)
+        self.scroll_area = parent  # ScrollArea is passed as the parent
 
         self.default_height = height  # Store default height
         self.expanded_height = height + 120  # Adjust height for entries
@@ -165,7 +167,7 @@ class CreateAccount(QWidget):
 
 
         # Load rounded image
-        self.bg_pixmap = create_rounded_image(self.minimized_image_path, (width, height), radius)
+        self.bg_pixmap = create_rounded_image(self.minimized_image_path, (width, height), 0)
 
         # Background Label (Image)
         self.bg_label = QLabel(self)
@@ -242,7 +244,7 @@ class CreateAccount(QWidget):
         self.cancel_button.hide()
 
     def expand_form(self):
-        """ Expands the frame and shows the input fields """
+        """Expands the frame and shows the input fields"""
         self.setFixedSize(self.width(), self.expanded_height)
         self.bg_label.hide()  # Hide the image
         self.button.hide()  # Hide the button
@@ -255,6 +257,13 @@ class CreateAccount(QWidget):
         self.password_entry.show()
         self.confirm_button.show()
         self.cancel_button.show()
+
+        # Force layout update and then scroll to the bottom
+        self.updateGeometry()  # This ensures the layout is refreshed
+        self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum())
+
+        # Alternatively, you can use ensureWidgetVisible (if specific widget visibility is required)
+        self.scroll_area.ensureWidgetVisible(self)
 
     def reset_form(self):
         """ Resets the form back to the initial state with the image """
@@ -297,6 +306,8 @@ class CreateAccount(QWidget):
             radius=15  # Use a fixed radius
         )
 
+        users.append({"riot_id": riot_id, "tagline": tagline, "username": username, "password": password})
+
         # Get the layout of the parent widget
         parent_layout = self.parent().layout()
 
@@ -311,6 +322,10 @@ class CreateAccount(QWidget):
         if add_account_button_index != -1:
             # Insert the new account button before the "Add Account" button
             parent_layout.insertWidget(add_account_button_index, new_account)
+            
+        # Delete Add account button if we have less than 6 users in the list
+        if len(users) < 6:
+            parent_layout.itemAt(add_account_button_index + 1).widget().deleteLater()
 
         # Reset the form back to the initial state after confirming
         self.reset_form()
@@ -320,7 +335,7 @@ class MainApp(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Riot Logger")
-        self.setGeometry(100, 100, 100, 100)  # x, y, w, h
+        self.setGeometry(100, 100, 442, 372)  # x, y, w, h
 
         # Set background color
         self.setStyleSheet("background-color: #242424; color: white;")
@@ -332,18 +347,34 @@ class MainApp(QWidget):
         height = 50
         radius = 15
 
-        # Calculate create account buttons count
+        # Create a scrollable area for the account buttons
+        scroll_area = QScrollArea(self)
+        scroll_area.setWidgetResizable(True)
+
+        # Hide the scrollbar
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        scroll_content = QWidget(scroll_area)
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_area.setWidget(scroll_content)
+
+        # Add account buttons to scrollable area
         max_accounts_visible = 6
         create_account_count = max_accounts_visible - len(users)
 
-        # Generate profile buttons for each user
         for user in users:
             w = random.randint(0, 1000)
             l = random.randint(0, 1000)
-            layout.addWidget(AccountButton(user, "bronze.png", w, l, width, height, radius))
+            scroll_layout.addWidget(AccountButton(user, "bronze.png", w, l, width, height, radius))
 
-        # Generate account buttons
-        layout.addWidget(CreateAccount(width, height, radius))
+        # Add Create Account button
+        for i in range(create_account_count):
+            create_account_widget = CreateAccount(width, height, radius, scroll_area)
+            scroll_layout.addWidget(create_account_widget)
+
+        # Add the scroll area to the main layout
+        layout.addWidget(scroll_area)
 
         self.setLayout(layout)
 
