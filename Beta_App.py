@@ -69,7 +69,7 @@ def create_rounded_image(image_path, size, radius):
 
 
 class RoundedButton(QWidget):
-    def __init__(self, user_data, image_path, parent=None, w=0, l=0):
+    def __init__(self, user_data, image_path, w, l, parent=None):
         super().__init__(parent)
 
         width = 400
@@ -168,12 +168,11 @@ class MainApp(QWidget):
 
         layout = QVBoxLayout(self)
 
-        w = random.randint(0, 1000)  # WINS
-        l = random.randint(0, 1000)  # LOSSES
-
         # Generate profile buttons for each user
         for user in users:
-            layout.addWidget(RoundedButton(user, "bronze.png"), w=w, l=l)
+            w = random.randint(0, 1000)
+            l = random.randint(0, 1000)
+            layout.addWidget(RoundedButton(user, "bronze.png", w, l))
 
         self.setLayout(layout)
 
