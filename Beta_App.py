@@ -286,13 +286,34 @@ class CreateAccount(QWidget):
             print("Please fill all fields!")
             return
 
-        new_account = RoundedButton(
-            {"riot_id": riot_id, "tagline": tagline, "username": username, "password": password}, "bronze.png"
+        # Create a new AccountButton with the provided data
+        new_account = AccountButton(
+            {"riot_id": riot_id, "tagline": tagline, "username": username, "password": password},
+            "bronze.png",  # Use a default image for now
+            w=random.randint(0, 1000),  # Random wins count for now
+            l=random.randint(0, 1000),  # Random losses count for now
+            width=400,  # Use a fixed width
+            height=50,  # Use a fixed height
+            radius=15  # Use a fixed radius
         )
-        parent_layout = self.parent().layout()
-        parent_layout.insertWidget(parent_layout.count() - 1, new_account)  # Insert above "Add Account"
 
-        self.reset_form()  # Reset form after confirming
+        # Get the layout of the parent widget
+        parent_layout = self.parent().layout()
+
+        # Find the last widget (the "Add Account" button) and get its index
+        add_account_button_index = -1
+        for i in range(parent_layout.count()):
+            widget = parent_layout.itemAt(i).widget()
+            if widget and isinstance(widget, CreateAccount):
+                add_account_button_index = i
+                break
+
+        if add_account_button_index != -1:
+            # Insert the new account button before the "Add Account" button
+            parent_layout.insertWidget(add_account_button_index, new_account)
+
+        # Reset the form back to the initial state after confirming
+        self.reset_form()
 
 
 class MainApp(QWidget):
@@ -322,11 +343,7 @@ class MainApp(QWidget):
             layout.addWidget(AccountButton(user, "bronze.png", w, l, width, height, radius))
 
         # Generate account buttons
-        if create_account_count > 0:
-            for i in range(create_account_count):
-                layout.addWidget(CreateAccount(width, height, radius))
-        else:
-            layout.addWidget(CreateAccount(width, height, radius))
+        layout.addWidget(CreateAccount(width, height, radius))
 
         self.setLayout(layout)
 
