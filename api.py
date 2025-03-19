@@ -23,7 +23,8 @@ def get_puuid(game_name: str, tagline: str, api_key: str):
         return response.json().get('puuid')
     else:
         print(f"Error {response.status_code}: {response.json()}")
-        print(f"Most likely outdated 'API KEY'")
+        print(f"Most likely outdated 'API KEY'.")
+        print(f"Make sure the 'API KEY' in '.env' file is correct!")
         return None
 
 # Function to get Summoner ID from PUUID
