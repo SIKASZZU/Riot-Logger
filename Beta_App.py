@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QLineEdit, QVBoxLayout
 from PyQt6.QtGui import QCursor, QFont
 from PyQt6.QtCore import Qt, QPropertyAnimation, QSize
 
-from api import get_data
+from Beta_Api import get_data
 
 from dotenv import load_dotenv
 import os
