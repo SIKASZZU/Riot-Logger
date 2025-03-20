@@ -31,7 +31,7 @@ RANKS = {
     "Challenger":   'images/challenger.png'}
 
 REGIONS = [
-    '',
+    'Region',
     'BR1',
     'EUN1',
     'EUW1',
@@ -345,7 +345,7 @@ class CreateAccount(QWidget):
         password = self.password_entry.text()
         region = self.combo_box.currentText()
 
-        if not riot_id or not username or not password:
+        if not riot_id or not username or not password or region == "Region":
             print("Please fill all fields!")
             return
 
