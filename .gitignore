@@ -3,4 +3,4 @@
 /main.spec
 /build/
 dist/
-.env
+/.env
