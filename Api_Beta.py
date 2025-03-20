@@ -1,95 +1,89 @@
-import os
 import requests
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-api_key = os.getenv('riot_api_key')  # TODO: Ensure your API key is in the .env file
 
-if not api_key:
-    raise ValueError("API key not found. Check your .env file.")
+class RiotAPI:
+    def __init__(self, api_key: str, region: str):
+        self.api_key = api_key
+        self.region = region
+        self.base_urls = {
+            "account": "https://europe.api.riotgames.com",
+            "summoner": f"https://{region}.api.riotgames.com"
+        }
+        self.headers = {"X-Riot-Token": self.api_key}
 
-game_name = 'pegla'
-tagline = 'eune'
-region = 'eun1'  # Use 'eun1' for EUNE players
+    def get_puuid(self, game_name: str, tagline: str):
+        url = f"{self.base_urls['account']}/riot/account/v1/accounts/by-riot-id/{game_name}/{tagline}"
+        response = requests.get(url, headers=self.headers)
+        return self._handle_response(response, "puuid")
 
-# Function to get PUUID
-def get_puuid(game_name: str, tagline: str, api_key: str):
-    url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{game_name}/{tagline}"
-    headers = {"X-Riot-Token": api_key}
-    response = requests.get(url, headers=headers)
+    def get_summoner_id(self, puuid: str):
+        url = f"{self.base_urls['summoner']}/lol/summoner/v4/summoners/by-puuid/{puuid}"
+        response = requests.get(url, headers=self.headers)
+        return self._handle_response(response, "id")
 
-    if response.status_code == 200:
-        return response.json().get('puuid')
-    else:
-        # Handle client-side errors (4xx) and server-side errors (5xx)
-        if response.status_code >= 400 and response.status_code < 500:
-            return f"Client [{response.status_code}]"
-        elif response.status_code >= 500 and response.status_code < 600:
-            return f"Server [{response.status_code}]"
+    def get_ranked_data(self, summoner_id: str):
+        url = f"{self.base_urls['summoner']}/lol/league/v4/entries/by-summoner/{summoner_id}"
+        response = requests.get(url, headers=self.headers)
+
+        if response.status_code == 200:
+            ranked_data = response.json()
+            for entry in ranked_data:
+                if entry['queueType'] == 'RANKED_SOLO_5x5':
+                    tier, rank, lp = entry['tier'], entry['rank'], entry['leaguePoints']
+                    wins, losses = entry['wins'], entry['losses']
+                    winrate = round((wins / (wins + losses)) * 100, 1)
+                    return (tier, rank, lp), (wins, losses, winrate)
+            return None
         else:
-            return f"Error {response.status_code} - Unknown error"
+            # print(f"Error {response.status_code}: {response.json()}")
+            return None
 
-# Function to get Summoner ID from PUUID
-def get_summoner_id(puuid: str, api_key: str, region: str):
-    url = f"https://{region}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
-    headers = {"X-Riot-Token": api_key}
-    response = requests.get(url, headers=headers)
+    @staticmethod
+    def _handle_response(response, key):
+        if response.status_code == 200:
+            return response.json().get(key)
+        # print(f"Error {response.status_code}: {response.json()}")
+        return None
 
-    if response.status_code == 200:
-        return response.json().get('id')  # Summoner ID
-    else:
-        # Handle client-side errors (4xx) and server-side errors (5xx)
-        if response.status_code >= 400 and response.status_code < 500:
-            return f"Client [{response.status_code}]"
-        elif response.status_code >= 500 and response.status_code < 600:
-            return f"Server [{response.status_code}]"
-        else:
-            return f"Error {response.status_code} - Unknown error"
+    def get_player_data(self, game_name: str, tagline: str):
+        puuid = self.get_puuid(game_name, tagline)
+        if not puuid:
+            # print("Could not retrieve PUUID.")
+            return None
 
-# Function to get ranked data from Summoner ID
-def get_ranked_data(summoner_id: str, api_key: str, region: str):
-    url = f"https://{region}.api.riotgames.com/lol/league/v4/entries/by-summoner/{summoner_id}"
-    headers = {"X-Riot-Token": api_key}
-    response = requests.get(url, headers=headers)
+        summoner_id = self.get_summoner_id(puuid)
+        if not summoner_id:
+            # print("Could not retrieve Summoner ID.")
+            return None
 
-    if response.status_code == 200:
-        ranked_data = response.json()
-        for entry in ranked_data:
-            if entry['queueType'] == 'RANKED_SOLO_5x5':
-                tier = entry['tier']
-                rank = entry['rank']
-                lp = entry['leaguePoints']
-                wins = entry['wins']
-                losses = entry['losses']
-                winrate = round((wins / (wins + losses)) * 100, 1)
-                # Return the rank and winrate as separate strings
-                rank_str = f"{tier} {rank} - {lp} LP"
-                winrate_str = f"{wins}W/{losses}L - {winrate}% WR"
-                return rank_str, winrate_str
-        return "No ranked data found."
-    else:
-        # Handle client-side errors (4xx) and server-side errors (5xx)
-        if response.status_code >= 400 and response.status_code < 500:
-            return f"Client [{response.status_code}]"
-        elif response.status_code >= 500 and response.status_code < 600:
-            return f"Server [{response.status_code}]"
-        else:
-            return f"Error {response.status_code} - Unknown error"
-
-# Main execution
-puuid = get_puuid(game_name, tagline, api_key)
-if isinstance(puuid, str) and puuid.startswith("Client") or puuid.startswith("Server"):
-    print(puuid)  # Print the error message
-else:
-    summoner_id = get_summoner_id(puuid, api_key, region)
-    if isinstance(summoner_id, str) and summoner_id.startswith("Client") or summoner_id.startswith("Server"):
-        print(summoner_id)  # Print the error message
-    else:
-        ranked_info = get_ranked_data(summoner_id, api_key, region)
-        if isinstance(ranked_info, str) and ranked_info.startswith("Client") or ranked_info.startswith("Server"):
-            print(ranked_info)  # Print the error message
-        else:
-            # Unpack the tuple into rank and winrate strings
+        ranked_info = self.get_ranked_data(summoner_id)
+        if ranked_info:
             rank, winrate = ranked_info
-            print(f"Ranked Info: {rank}, {winrate}")
+            tier, rank, lp = rank
+            wins, losses, winrate = winrate
+
+            rank = tier, f"{tier} {rank} - {lp} LP"
+            winrate = f"{wins}W/{losses}L - {winrate}% WR"
+
+        else:
+            winrate = None
+            rank = None
+
+        return rank, winrate
+
+
+def get_data(game_name, tagline, region, api_key):
+    riot_api = RiotAPI(api_key, region)
+    return riot_api.get_player_data(game_name, tagline)
+
+if __name__ == "__main__":
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    api_key = os.getenv('riot_api_key')
+    if not api_key:
+        raise ValueError("API key not found. Check your .env file.")
+
+    data = get_data('pegla', 'eune', 'eun1', api_key)
+    print(data)
