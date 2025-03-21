@@ -1,5 +1,5 @@
 import sys
-import random
+
 from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton
 from PyQt6.QtGui import QPixmap, QFont, QCursor
 from PyQt6.QtCore import Qt
@@ -7,9 +7,10 @@ from PIL import Image, ImageDraw
 
 from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QLineEdit, QVBoxLayout, QHBoxLayout, QScrollArea, QComboBox
 from PyQt6.QtGui import QCursor, QFont
-from PyQt6.QtCore import Qt, QPropertyAnimation, QSize
+from PyQt6.QtCore import Qt, pyqtSignal
 
 from Beta_Api import get_data
+from Beta_Riot import RiotClient
 
 from dotenv import load_dotenv
 import os
@@ -17,6 +18,7 @@ import os
 from PyQt6.QtWidgets import QComboBox, QStyledItemDelegate
 from PyQt6.QtCore import Qt
 
+import json
 
 # Available ranks
 RANKS = {
@@ -50,6 +52,19 @@ REGIONS = [
 ]
 
 
+def load_data(file_path):
+    try:
+        with open(file_path, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def save_data(users, file_path):
+    with open(file_path, "w") as f:
+        json.dump(users, f, indent=4)
+
+
 # User data dictionary
 users = [
     {'riot_id': 'hate being sober',     'tagline': '420',   'region': 'eun1',   'username': 'test', 'password': 'test'},
@@ -77,6 +92,8 @@ def create_rounded_image(image_path, size, radius):
 
 
 class AccountButton(QWidget):
+    clicked_account = pyqtSignal(str, str)  # Define signal with username and password
+
     def __init__(self, user_data, width, height, radius, image_path='images/default.png', parent=None):
         super().__init__(parent)
 
@@ -159,6 +176,7 @@ class AccountButton(QWidget):
         self.button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))  # Set cursor to hand
         self.button.clicked.connect(self.on_click)
 
+
     def enterEvent(self, event):
         """ Change account label color to white on hover """
         self.account_label.setStyleSheet("color: #A5A2A3; background: transparent;")
@@ -172,7 +190,7 @@ class AccountButton(QWidget):
         self.rank_label.setStyleSheet("color: gray; background: transparent;")
 
     def on_click(self):
-        print(f"Username: {self.username}, Password: {self.password}")
+        self.clicked_account.emit(self.username, self.password)  # Emit signal with data
 
 
 class CenterDelegate(QStyledItemDelegate):
@@ -359,6 +377,8 @@ class CreateAccount(QWidget):
 
         users.append({"riot_id": riot_id, "tagline": tagline, "region": region, "username": username, "password": password})
 
+        save_data(users, "users_data.json")  # save accounts to json
+        
         # Get the layout of the parent widget
         parent_layout = self.parent().layout()
 
@@ -383,9 +403,12 @@ class CreateAccount(QWidget):
 
 
 class MainApp(QWidget):
-    def __init__(self):
+    clicked_account = AccountButton.clicked_account
+
+    def __init__(self, riot_client):
         super().__init__()
         load_dotenv()
+        self.riot_client = riot_client
 
         self.setWindowTitle("Riot Logger")
         self.setGeometry(100, 100, 442, 372)  # x, y, w, h
@@ -394,6 +417,9 @@ class MainApp(QWidget):
         self.setStyleSheet("background-color: #242424; color: white;")
 
         layout = QVBoxLayout(self)
+
+        self.username = None
+        self.password = None
 
         # Button sizes
         width = 400
@@ -415,23 +441,36 @@ class MainApp(QWidget):
         # Add account buttons to scrollable area
         max_accounts_visible = 6
         create_account_count = max_accounts_visible - len(users)
-
+        
         for user in users:
-            scroll_layout.addWidget(AccountButton(user, width, height, radius))
+            account_button = AccountButton(user, width, height, radius)
+            account_button.clicked_account.connect(self.on_signal_received)
+            scroll_layout.addWidget(account_button)
 
         # Add Create Account button
         for i in range(create_account_count):
-            create_account_widget = CreateAccount(width, height, radius, scroll_area)
-            scroll_layout.addWidget(create_account_widget)
+           create_account_widget = CreateAccount(width, height, radius, scroll_area)
+           scroll_layout.addWidget(create_account_widget)
 
         # Add the scroll area to the main layout
         layout.addWidget(scroll_area)
 
         self.setLayout(layout)
 
+    def on_signal_received(self, username, password):
+        self.username = username
+        self.password = password
+        print(f"Signal received with username: {self.username} and password: {self.password}")
+        
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MainApp()
-    window.show()
-    sys.exit(app.exec())
+    users = load_data('users_data.json')  # Load user data
+    q_app = QApplication(sys.argv)        # Create QApplication instance
+    riot_client = RiotClient()            # Create RiotClient instance
+    main_app = MainApp(riot_client)                  # Create MainApp instance
+
+    riot_client.open()                    # Open Riot client connection
+    main_app.show()                       # Show the main app
+
+    # Start the PyQt application event loop
+    sys.exit(q_app.exec())
