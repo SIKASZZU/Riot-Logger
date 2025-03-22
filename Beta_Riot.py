@@ -50,23 +50,22 @@ class RiotClient:
                 break
 
 
-    def send_info(self):
-        # Adjust the click coordinates relative to the Riot Client window
-        adjusted_user_xy = (self.left + self.user_xy[0], self.top + self.user_xy[1])
-        adjusted_pass_xy = (self.left + self.pass_xy[0], self.top + self.pass_xy[1])
-        adjusted_login_button_xy = (self.left + self.login_button_xy[0], self.top + self.login_button_xy[1])
+    def send_info(self, scaled_coords, username, password):
+        scaled_user_xy, scaled_pass_xy, scaled_login_button_xy = scaled_coords
 
-        ################# Clickin username1 password1g #################
+        adjusted_user_xy = (self.left + scaled_user_xy[0], self.top + self.user_xy[1])
+        adjusted_pass_xy = (self.left + scaled_pass_xy[0], self.top + self.pass_xy[1])
+        adjusted_login_button_xy = (self.left + scaled_login_button_xy[0], self.top + self.login_button_xy[1])
 
         # Click and type username
         self.send_click(adjusted_user_xy[0], adjusted_user_xy[1])
         time.sleep(self.random_sleep)
-        self.send_text(self.account_name)
+        self.send_text(username)
 
         # Click and type password
         self.send_click(adjusted_pass_xy[0], adjusted_pass_xy[1])
         time.sleep(self.random_sleep)
-        self.send_text(self.account_pass)
+        self.send_text(password)
 
         # Click the login button
         self.send_click(adjusted_login_button_xy[0], adjusted_login_button_xy[1])
@@ -87,21 +86,23 @@ class RiotClient:
     
 
     def scale(self):
-        print(self.riot_window.width, self.riot_window.height)
         if self.riot_window.width == self.normalized_size[0] and self.riot_window.height == self.normalized_size[1]:
             print('Window is normal sized')
+            return (self.user_xy, self.pass_xy, self.login_button_xy)
 
         elif self.riot_window.width < self.normalized_size[0] and self.riot_window.height < self.normalized_size[1]:
             print('Window is undersized')
-            user_xy = self.scale_coords(user_xy, self.riot_window, self.normalized_size)
-            pass_xy = self.scale_coords(pass_xy, self.riot_window, self.normalized_size)
-            login_button_xy = self.scale_coords(login_button_xy, self.riot_window, self.normalized_size)
+            scaled_user_xy = self.scale_coords(self.user_xy, self.riot_window, self.normalized_size)
+            scaled_pass_xy = self.scale_coords(self.pass_xy, self.riot_window, self.normalized_size)
+            scaled_login_button_xy = self.scale_coords(self.login_button_xy, self.riot_window, self.normalized_size)
+            return (scaled_user_xy, scaled_pass_xy, scaled_login_button_xy)
 
         elif self.riot_window.width > self.normalized_size[0] and self.riot_window.height > self.normalized_size[1]:
             print('Window is oversized')
-            user_xy = self.scale_coords(user_xy, self.riot_window, self.normalized_size)
-            pass_xy = self.scale_coords(pass_xy, self.riot_window, self.normalized_size)
-            login_button_xy = self.scale_coords(login_button_xy, self.riot_window, self.normalized_size)
+            scaled_user_xy = self.scale_coords(self.user_xy, self.riot_window, self.normalized_size)
+            scaled_pass_xy = self.scale_coords(self.pass_xy, self.riot_window, self.normalized_size)
+            scaled_login_button_xy = self.scale_coords(self.login_button_xy, self.riot_window, self.normalized_size)
+            return (scaled_user_xy, scaled_pass_xy, scaled_login_button_xy)
 
     
     def scale_coords(original_coords, window_size, normalized_size):
@@ -111,23 +112,9 @@ class RiotClient:
         return (int(original_coords[0] * scale_x), int(original_coords[1] * scale_y))
 
 
-    def read_acc_details():
-        """ txt file has to be acc_details.txt and a new line == new account
-            acc with format: name, accname, password.    """
-        
-        try:
-            open("acc_details.txt", "a").close()  # Creates the file if it doesn’t exist
-        except Exception as e:
-            print(f"Error creating acc_details.txt: {e}")
-
-        # Load existing accounts from file
-        try:
-            with open("acc_details.txt", "r") as f:
-                accounts_list = [tuple(line.strip().split(", ")) for line in f if line.strip()]
-        except FileNotFoundError:
-            accounts_list = []
-
-        return accounts_list
+    def execute(self, username, password):
+        scaled_coords = self.scale()        # return user_xy, pass_xy and login_xy coords relative to riot client window size
+        self.send_info(scaled_coords, username, password)  # use scaled coords to type log in info and click log in
 
 
 if __name__ == '__main__':

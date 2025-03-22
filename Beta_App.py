@@ -460,8 +460,10 @@ class MainApp(QWidget):
     def on_signal_received(self, username, password):
         self.username = username
         self.password = password
-        print(f"Signal received with username: {self.username} and password: {self.password}")
+        print(f"Signal received with log in information")
         
+        # going to Beta_Riot.py now to send username, password to there.
+        self.riot_client.execute(username, password)
 
 if __name__ == "__main__":
     users = load_data('users_data.json')  # Load user data
