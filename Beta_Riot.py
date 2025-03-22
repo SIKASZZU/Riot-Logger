@@ -10,11 +10,15 @@ import win32con
 class RiotClient:
     def __init__(self):
 
-        self.normalized_size = (1536, 864)
+        self.normalized_size        = (1536, 864)
+        self.normal_user_xy         = (200, 275)
+        self.normal_pass_xy         = (200, 320)
+        self.normal_login_button_xy = (200, 700)
+        
         self.user_xy         = (200, 275)
         self.pass_xy         = (200, 320)
         self.login_button_xy = (200, 700)
-    
+
         self.riot_window = None
         self.hwnd   = None
         self.left   = 0
@@ -39,7 +43,7 @@ class RiotClient:
 
                 elif title == 'League of Legends':
                     print('Riot client already open and logged in\n')
-                    return
+                    return False
             
             if client_opened == True:  
                 self.riot_window = gw.getWindowsWithTitle('Riot Client')[0]
@@ -47,15 +51,15 @@ class RiotClient:
                 self.left, self.top, self.width, self.height = self.riot_window.left, self.riot_window.top, self.riot_window.width, self.riot_window.height
 
                 print('Riot Client is open\n')
-                break
+                return True
 
 
     def send_info(self, scaled_coords, username, password):
         scaled_user_xy, scaled_pass_xy, scaled_login_button_xy = scaled_coords
 
-        adjusted_user_xy = (self.left + scaled_user_xy[0], self.top + self.user_xy[1])
-        adjusted_pass_xy = (self.left + scaled_pass_xy[0], self.top + self.pass_xy[1])
-        adjusted_login_button_xy = (self.left + scaled_login_button_xy[0], self.top + self.login_button_xy[1])
+        adjusted_user_xy = (self.left + scaled_user_xy[0], self.top + scaled_user_xy[1])
+        adjusted_pass_xy = (self.left + scaled_pass_xy[0], self.top + scaled_pass_xy[1])
+        adjusted_login_button_xy = (self.left + scaled_login_button_xy[0], self.top + scaled_login_button_xy[1])
 
         # Click and type username
         self.send_click(adjusted_user_xy[0], adjusted_user_xy[1])
@@ -105,7 +109,7 @@ class RiotClient:
             return (scaled_user_xy, scaled_pass_xy, scaled_login_button_xy)
 
     
-    def scale_coords(original_coords, window_size, normalized_size):
+    def scale_coords(self, original_coords, window_size, normalized_size):
         """Scale coordinates proportionally to the current window size."""
         scale_x = window_size.width / normalized_size[0]
         scale_y = window_size.height / normalized_size[1]
@@ -113,6 +117,10 @@ class RiotClient:
 
 
     def execute(self, username, password):
+        
+        # FIXME: siin on mingi veider bug, et kui windowi ei ole v midagi taolist ss crashib.
+        boolean_is_open = self.open()
+        if boolean_is_open == False:  return  # League of Legendi ei saa andmeid kirjutada. Return
         scaled_coords = self.scale()        # return user_xy, pass_xy and login_xy coords relative to riot client window size
         self.send_info(scaled_coords, username, password)  # use scaled coords to type log in info and click log in
 

@@ -87,7 +87,7 @@ class AccountButton(QWidget):
 
     def __init__(self, user_data, width, height, radius, image_path='images/default.png', parent=None):
         super().__init__(parent)
-
+        
         self.setFixedSize(width, height)
 
         self.account_name = f"{user_data['riot_id']} # {user_data['tagline']}"
@@ -193,14 +193,15 @@ class CenterDelegate(QStyledItemDelegate):
 class CreateAccount(QWidget):
     def __init__(self, app, width, height, radius, parent=None):
         super().__init__(parent)
-
         self.app = app
+        self.arg_width  = width
+        self.arg_height = height
+        self.radius = radius
         
         self.scroll_area = parent  # ScrollArea is passed as the parent
 
         self.default_height = height  # Store default height
         self.expanded_height = height + 120  # Adjust height for entries
-        self.radius = radius
         self.minimized_image_path = "images/create_new.png"
         self.expanded_image_path = "images/expanded_create_new.png"
 
@@ -223,7 +224,7 @@ class CreateAccount(QWidget):
             f"""
             QPushButton {{
                 background: transparent;
-                border-radius: {radius}px;
+                border-radius: {self.radius}px;
                 border: none;
             }}
             QPushButton:hover {{
@@ -328,6 +329,7 @@ class CreateAccount(QWidget):
         # Alternatively, you can use ensureWidgetVisible (if specific widget visibility is required)
         self.scroll_area.ensureWidgetVisible(self)
 
+
     def reset_form(self):
         """ Resets the form back to the initial state with the image """
         self.setFixedSize(self.width(), self.default_height)
@@ -356,15 +358,19 @@ class CreateAccount(QWidget):
         username = self.username_entry.text()
         password = self.password_entry.text()
         region = self.combo_box.currentText()
-
+        user = {"riot_id": riot_id, "tagline": tagline, "region": region, "username": username, "password": password}
+        
         if not riot_id or not username or not password or region == "Region":
             print("Please fill all fields!")
             return
 
         # Create a new AccountButton with the provided data
-        self.app.create_account(user, width, height, radius)
+        print('confirming account', self.app)
+        print(self.arg_width)
+        print(self.arg_height)
+        new_account = self.app.create_account(user, self.arg_width, self.arg_height, self.radius)
         
-        self.app.users.append({"riot_id": riot_id, "tagline": tagline, "region": region, "username": username, "password": password})
+        self.app.users.append(user)
 
         save_data(self.app.users, "users_data.json")  # save accounts to json
         
@@ -424,23 +430,23 @@ class MainApp(QWidget):
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         scroll_content = QWidget(scroll_area)
-        scroll_layout = QVBoxLayout(scroll_content)
+        self.scroll_layout = QVBoxLayout(scroll_content)
         scroll_area.setWidget(scroll_content)
 
         self.users = load_data('users_data.json')  # Load user data
-
         
         # Add account buttons to scrollable area
         max_accounts_visible = 6
         create_account_count = max_accounts_visible - len(self.users)
         
         for user in self.users:
+            print('user format', user)
             self.create_account(user, width, height, radius)
             
         # Add Create Account button
         for i in range(create_account_count):
            create_account_widget = CreateAccount(self, width, height, radius, scroll_area)
-           scroll_layout.addWidget(create_account_widget)
+           self.scroll_layout.addWidget(create_account_widget)
 
         # Add the scroll area to the main layout
         layout.addWidget(scroll_area)
@@ -448,9 +454,11 @@ class MainApp(QWidget):
         self.setLayout(layout)
         
     def create_account(self, user, width, height, radius):
-        account_button = AccountButton(self, user, width, height, radius)
+        print('createaccfunction', user, width, height, radius)
+        account_button = AccountButton(user, width, height, radius)
         account_button.clicked_account.connect(self.on_signal_received)
-        scroll_layout.addWidget(account_button)
+        self.scroll_layout.addWidget(account_button)
+        return account_button
     
     def on_signal_received(self, username, password):
         self.username = username
