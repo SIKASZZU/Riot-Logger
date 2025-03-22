@@ -64,15 +64,6 @@ def save_data(users, file_path):
     with open(file_path, "w") as f:
         json.dump(users, f, indent=4)
 
-
-# User data dictionary
-users = [
-    {'riot_id': 'hate being sober',     'tagline': '420',   'region': 'eun1',   'username': 'test', 'password': 'test'},
-    {'riot_id': 'player3',              'tagline': '2002',  'region': 'eun1',   'username': 'test1', 'password': 'test1'},
-    {'riot_id': 'SAMICELASICE',         'tagline': 'cígoš', 'region': 'eun1',   'username': 'test2', 'password': 'test2'},
-]
-
-
 def create_rounded_image(image_path, size, radius):
     """Creates a rounded image with PIL and converts it to QPixmap."""
     img = Image.open(image_path).convert("RGBA")
@@ -200,8 +191,11 @@ class CenterDelegate(QStyledItemDelegate):
 
 
 class CreateAccount(QWidget):
-    def __init__(self, width, height, radius, parent=None):
+    def __init__(self, app, width, height, radius, parent=None):
         super().__init__(parent)
+
+        self.app = app
+        
         self.scroll_area = parent  # ScrollArea is passed as the parent
 
         self.default_height = height  # Store default height
@@ -368,16 +362,11 @@ class CreateAccount(QWidget):
             return
 
         # Create a new AccountButton with the provided data
-        new_account = AccountButton(
-            {"riot_id": riot_id, "tagline": tagline, "region": region, "username": username, "password": password},
-            width=400,  # Use a fixed width
-            height=50,  # Use a fixed height
-            radius=15  # Use a fixed radius
-        )
+        self.app.create_account(user, width, height, radius)
+        
+        self.app.users.append({"riot_id": riot_id, "tagline": tagline, "region": region, "username": username, "password": password})
 
-        users.append({"riot_id": riot_id, "tagline": tagline, "region": region, "username": username, "password": password})
-
-        save_data(users, "users_data.json")  # save accounts to json
+        save_data(self.app.users, "users_data.json")  # save accounts to json
         
         # Get the layout of the parent widget
         parent_layout = self.parent().layout()
@@ -395,7 +384,7 @@ class CreateAccount(QWidget):
             parent_layout.insertWidget(add_account_button_index, new_account)
 
         # Delete Add account button if we have less than 6 users in the list
-        if len(users) < 6:
+        if len(self.app.users) < 6:
             parent_layout.itemAt(add_account_button_index + 1).widget().deleteLater()
 
         # Reset the form back to the initial state after confirming
@@ -438,25 +427,31 @@ class MainApp(QWidget):
         scroll_layout = QVBoxLayout(scroll_content)
         scroll_area.setWidget(scroll_content)
 
+        self.users = load_data('users_data.json')  # Load user data
+
+        
         # Add account buttons to scrollable area
         max_accounts_visible = 6
-        create_account_count = max_accounts_visible - len(users)
+        create_account_count = max_accounts_visible - len(self.users)
         
-        for user in users:
-            account_button = AccountButton(user, width, height, radius)
-            account_button.clicked_account.connect(self.on_signal_received)
-            scroll_layout.addWidget(account_button)
-
+        for user in self.users:
+            self.create_account(user, width, height, radius)
+            
         # Add Create Account button
         for i in range(create_account_count):
-           create_account_widget = CreateAccount(width, height, radius, scroll_area)
+           create_account_widget = CreateAccount(self, width, height, radius, scroll_area)
            scroll_layout.addWidget(create_account_widget)
 
         # Add the scroll area to the main layout
         layout.addWidget(scroll_area)
 
         self.setLayout(layout)
-
+        
+    def create_account(self, user, width, height, radius):
+        account_button = AccountButton(self, user, width, height, radius)
+        account_button.clicked_account.connect(self.on_signal_received)
+        scroll_layout.addWidget(account_button)
+    
     def on_signal_received(self, username, password):
         self.username = username
         self.password = password
