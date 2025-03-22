@@ -106,13 +106,14 @@ class AccountButton(QWidget):
 
         ranked_info = get_data(self.riot_id, self.tagline, self.region, api_key)
 
-        if ranked_info:
+        if ranked_info != (None, None):
+            print(ranked_info)
             (rank, self.rank), self.winrate = ranked_info
 
             rank = rank.capitalize()
-            print(rank)
             if rank in RANKS:
                 image_path = RANKS[rank]
+        else: print('respone 200, but account does not have rank yet')
 
         # Load rounded image
         self.bg_pixmap = create_rounded_image(image_path, (width, height), radius)
@@ -440,7 +441,6 @@ class MainApp(QWidget):
         create_account_count = max_accounts_visible - len(self.users)
         
         for user in self.users:
-            print('user format', user)
             self.create_account(user, width, height, radius)
             
         # Add Create Account button
@@ -454,7 +454,6 @@ class MainApp(QWidget):
         self.setLayout(layout)
         
     def create_account(self, user, width, height, radius):
-        print('createaccfunction', user, width, height, radius)
         account_button = AccountButton(user, width, height, radius)
         account_button.clicked_account.connect(self.on_signal_received)
         self.scroll_layout.addWidget(account_button)

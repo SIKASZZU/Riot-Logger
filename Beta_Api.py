@@ -24,7 +24,6 @@ class RiotAPI:
     def get_ranked_data(self, summoner_id: str):
         url = f"{self.base_urls['summoner']}/lol/league/v4/entries/by-summoner/{summoner_id}"
         response = requests.get(url, headers=self.headers)
-
         if response.status_code == 200:
             ranked_data = response.json()
             for entry in ranked_data:
@@ -35,25 +34,25 @@ class RiotAPI:
                     return (tier, rank, lp), (wins, losses, winrate)
             return None
         else:
-            # print(f"Error {response.status_code}: {response.json()}")
+            print(f"Error {response.status_code}: {response.json()}")
             return None
 
     @staticmethod
     def _handle_response(response, key):
         if response.status_code == 200:
             return response.json().get(key)
-        # print(f"Error {response.status_code}: {response.json()}")
+        print(f"Error {response.status_code}: {response.json()}")
         return None
 
     def get_player_data(self, game_name: str, tagline: str):
         puuid = self.get_puuid(game_name, tagline)
         if not puuid:
-            # print("Could not retrieve PUUID.")
+            print("Could not retrieve PUUID.")
             return None
 
         summoner_id = self.get_summoner_id(puuid)
         if not summoner_id:
-            # print("Could not retrieve Summoner ID.")
+            print("Could not retrieve Summoner ID.")
             return None
 
         ranked_info = self.get_ranked_data(summoner_id)
@@ -85,5 +84,5 @@ if __name__ == "__main__":
     if not api_key:
         raise ValueError("API key not found. Check your .env file.")
 
-    data = get_data('pegla', 'eune', 'eun1', api_key)
+    data = get_data('revert conq zzzz', 'mrcha', 'EUW1', api_key)
     print(data)
