@@ -61,6 +61,8 @@ class RiotClient:
         adjusted_pass_xy = (self.left + scaled_pass_xy[0], self.top + scaled_pass_xy[1])
         adjusted_login_button_xy = (self.left + scaled_login_button_xy[0], self.top + scaled_login_button_xy[1])
 
+        time.sleep(0.5)  # wait a little to give riot client time to open fully.
+        
         # Click and type username
         self.send_click(adjusted_user_xy[0], adjusted_user_xy[1])
         time.sleep(self.random_sleep)
