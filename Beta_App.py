@@ -116,14 +116,16 @@ class AccountButton(QWidget):
 
         ranked_info = get_data(self.riot_id, self.tagline, self.region, api_key)
 
-        if ranked_info != (None, None):
+        if ranked_info == (None, None) or ranked_info == None:
+            print('Unranked')
+        
+        else:
             print(ranked_info)
             (rank, self.rank), self.winrate = ranked_info
 
             rank = rank.capitalize()
             if rank in RANKS:
                 image_path = RANKS[rank]
-        else: print('Unranked')
 
         # Load rounded image
         self.bg_pixmap = create_rounded_image(image_path, (width, height), radius)
@@ -388,21 +390,23 @@ class CreateAccount(QWidget):
         # Get the layout of the parent widget
         parent_layout = self.parent().layout()
 
-        # Find the last widget (the "Add Account" button) and get its index
-        add_account_button_index = -1
+        # Find the last "Add Account" button
+        add_account_button_index = None
+        add_account_button = None
+
         for i in range(parent_layout.count()):
             widget = parent_layout.itemAt(i).widget()
             if widget and isinstance(widget, CreateAccount):
                 add_account_button_index = i
-                break
+                add_account_button = widget  # Store reference to the button
 
-        if add_account_button_index != -1:
-            # Insert the new account button before the "Add Account" button
+        # Insert the new account before the "Add Account" button
+        if add_account_button_index is not None:
             parent_layout.insertWidget(add_account_button_index, new_account)
 
-        # Delete Add account button if we have less than 6 users in the list
-        if len(self.app.users) < 6:
-            parent_layout.itemAt(add_account_button_index + 1).widget().deleteLater()
+        # If users exceed 6, remove the "Add Account" button
+        if len(self.app.users) > 6 and add_account_button:
+            add_account_button.deleteLater()
 
         # Reset the form back to the initial state after confirming
         self.reset_form()
@@ -457,6 +461,10 @@ class MainApp(QWidget):
         for i in range(create_account_count):
            create_account_widget = CreateAccount(self, width, height, radius, scroll_area)
            self.scroll_layout.addWidget(create_account_widget)
+
+        if create_account_count <= 0:  # ehk visible acce on 6 voi rohkem ning peab lisama eraldi new acc buttoni 
+            create_account_widget = CreateAccount(self, width, height, radius, scroll_area)
+            self.scroll_layout.addWidget(create_account_widget)
 
         # Add the scroll area to the main layout
         layout.addWidget(scroll_area)
