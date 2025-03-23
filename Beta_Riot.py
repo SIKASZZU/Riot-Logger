@@ -32,7 +32,16 @@ class RiotClient:
         windows = gw.getAllTitles()
         open_windows = [window for window in windows if window.strip()]
         
+        print(open_windows)
+
         if 'Riot Client' in open_windows: 
+            
+            # kirjuta self valued yle, sest i dont fucking know. 
+            # see shit crashib muidu, kui riot juba lahti ja appi avad ja yritad logida.
+            self.riot_window = gw.getWindowsWithTitle('Riot Client')[0]
+            self.hwnd = win32gui.FindWindow(None, self.riot_window.title)
+            self.left, self.top, self.width, self.height = self.riot_window.left, self.riot_window.top, self.riot_window.width, self.riot_window.height
+
             print('Riot Client is open\n')
             return True
         
@@ -129,6 +138,7 @@ class RiotClient:
         # FIXME: siin on mingi veider bug, et kui windowi ei ole v midagi taolist ss crashib.
         boolean_is_open = self.open()
         if boolean_is_open == False:  return  # League of Legendi ei saa andmeid kirjutada. Return
+        
         scaled_coords = self.scale()        # return user_xy, pass_xy and login_xy coords relative to riot client window size
         self.send_info(scaled_coords, username, password)  # use scaled coords to type log in info and click log in
 
