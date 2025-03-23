@@ -27,9 +27,10 @@ RANKS = {
     "Silver":       'images/silver.png',
     "Gold":         'images/gold.png',
     "Platinum":     'images/platinum.png',
+    "Emerald":      'images/emerald.png',
     "Diamond":      'images/diamond.png',
     "Master":       'images/master.png',
-    "Grandmaster":   'images/grandmaster.png',
+    "Grandmaster":  'images/grandmaster.png',
     "Challenger":   'images/challenger.png'}
 
 REGIONS = [
@@ -64,9 +65,18 @@ def save_data(users, file_path):
     with open(file_path, "w") as f:
         json.dump(users, f, indent=4)
 
+
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for development and PyInstaller onefile mode."""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.abspath(relative_path)
+
+
 def create_rounded_image(image_path, size, radius):
     """Creates a rounded image with PIL and converts it to QPixmap."""
-    img = Image.open(image_path).convert("RGBA")
+    abs_image_path = get_resource_path(image_path)
+    img = Image.open(abs_image_path).convert("RGBA")
     img = img.resize(size, Image.LANCZOS)
 
     # Create rounded mask
@@ -78,8 +88,8 @@ def create_rounded_image(image_path, size, radius):
     img.putalpha(mask)
 
     # Convert to QPixmap
-    img.save("images/temp_rounded.png")  # Temporary save for conversion
-    return QPixmap("images/temp_rounded.png")
+    img.save(get_resource_path("images/temp_rounded.png"))  # Temporary save for conversion
+    return QPixmap(get_resource_path("images/temp_rounded.png"))
 
 
 class AccountButton(QWidget):
@@ -113,7 +123,7 @@ class AccountButton(QWidget):
             rank = rank.capitalize()
             if rank in RANKS:
                 image_path = RANKS[rank]
-        else: print('respone 200, but account does not have rank yet')
+        else: print('Unranked')
 
         # Load rounded image
         self.bg_pixmap = create_rounded_image(image_path, (width, height), radius)
