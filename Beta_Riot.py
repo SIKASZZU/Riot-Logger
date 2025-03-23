@@ -29,6 +29,17 @@ class RiotClient:
         self.random_sleep = random.uniform(0.002, 0.005)
     
     def open(self):
+        windows = gw.getAllTitles()
+        open_windows = [window for window in windows if window.strip()]
+        
+        if 'Riot Client' in open_windows: 
+            print('Riot Client is open\n')
+            return True
+        
+        elif 'League of Legends' in open_windows:
+            print('Riot client is open and already logged in\n')
+            return False
+        
         launch_options = '--launch-product=league_of_legends --launch-patchline=live'
         subprocess.Popen(rf"C:\Riot Games\Riot Client\RiotClientServices.exe {launch_options}")
         print('Opening Riot Client\n')
@@ -37,14 +48,9 @@ class RiotClient:
             client_opened = False
             windows = gw.getAllTitles()
             open_windows = [window for window in windows if window.strip()]
-            for title in open_windows:
-                if title == 'Riot Client':
-                    client_opened = True
-
-                elif title == 'League of Legends':
-                    print('Riot client already open and logged in\n')
-                    return False
-            
+            if 'Riot Client' in open_windows: 
+                client_opened = True
+   
             if client_opened == True:  
                 self.riot_window = gw.getWindowsWithTitle('Riot Client')[0]
                 self.hwnd = win32gui.FindWindow(None, self.riot_window.title)
@@ -128,4 +134,5 @@ class RiotClient:
 
 
 if __name__ == '__main__':
-    pass
+    riot = RiotClient()
+    riot.open()
