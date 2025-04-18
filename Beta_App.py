@@ -438,7 +438,7 @@ class MainApp(QWidget):
         self.riot_client = riot_client
 
         self.setWindowTitle("Riot Logger")
-        self.setGeometry(100, 100, 442, 372)  # x, y, w, h
+        self.setFixedSize(442, 372)   # window size changable == false
 
         # Set background color
         self.setStyleSheet("background-color: #242424; color: white;")
