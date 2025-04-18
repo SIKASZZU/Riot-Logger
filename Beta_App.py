@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import QComboBox, QStyledItemDelegate
 from PyQt6.QtCore import Qt
 
 import json
+from pathlib import Path
 
 # Available ranks
 RANKS = {
@@ -53,25 +54,40 @@ REGIONS = [
 ]
 
 
-def load_data(file_path):
+# Get path to Documents/riot_logger/users_data.json
+def get_data_path():
+    documents = Path.home() / "Documents"
+    data_folder = documents / "Riot Logger"
+    data_folder.mkdir(exist_ok=True)
+    return data_folder / "users_data.json"
+
+FILE_PATH = get_data_path()
+# def get_save_path():
+#     """ Save users_data.json to Documents/riot_logger folder. """
+
+#     documents_dir = os.path.join(os.path.expanduser("~"), "Documents", "riot_logger")
+#     os.makedirs(documents_dir, exist_ok=True)  # Create the directory if it doesn't exist
+#     return os.path.join(documents_dir, "users_data.json")
+
+def load_data():
     try:
-        with open(file_path, "r") as f:
+        with open(FILE_PATH, "r") as f:
             return json.load(f)
+
+    # Kui datat ei ole ss return empty list 
     except (FileNotFoundError, json.JSONDecodeError):
+        print('Did not find any data')
         return []
-
-
-def save_data(users, file_path):
-    with open(file_path, "w") as f:
+    
+def save_data(users):
+    with open(FILE_PATH, "w") as f:
         json.dump(users, f, indent=4)
-
 
 def get_resource_path(relative_path):
     """Get absolute path to resource, works for development and PyInstaller onefile mode."""
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.abspath(relative_path)
-
 
 def create_rounded_image(image_path, size, radius):
     """Creates a rounded image with PIL and converts it to QPixmap."""
@@ -385,7 +401,7 @@ class CreateAccount(QWidget):
         
         self.app.users.append(user)
 
-        save_data(self.app.users, "users_data.json")  # save accounts to json
+        save_data(self.app.users)  # save accounts to json
         
         # Get the layout of the parent widget
         parent_layout = self.parent().layout()
@@ -448,7 +464,7 @@ class MainApp(QWidget):
         self.scroll_layout = QVBoxLayout(scroll_content)
         scroll_area.setWidget(scroll_content)
 
-        self.users = load_data('users_data.json')  # Load user data
+        self.users = load_data()  # Load user data
         
         # Add account buttons to scrollable area
         max_accounts_visible = 6
@@ -486,13 +502,15 @@ class MainApp(QWidget):
         self.riot_client.execute(username, password)
 
 if __name__ == "__main__":
-    users = load_data('users_data.json')  # Load user data
+
+    # Load info
+    users = load_data()                   # Load user data
     q_app = QApplication(sys.argv)        # Create QApplication instance
     riot_client = RiotClient()            # Create RiotClient instance
-    main_app = MainApp(riot_client)                  # Create MainApp instance
+    main_app = MainApp(riot_client)       # Create MainApp instance
 
+    # Actually do something now with info
     riot_client.open()                    # Open Riot client connection
     main_app.show()                       # Show the main app
 
-    # Start the PyQt application event loop
-    sys.exit(q_app.exec())
+    sys.exit(q_app.exec())  # event loop
