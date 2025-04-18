@@ -408,21 +408,22 @@ class CreateAccount(QWidget):
 
         # Find the last "Add Account" button
         add_account_button_index = None
-        add_account_button = None
 
+        # Find the last widget (the "Add Account" button) and get its index
+        add_account_button_index = -1
         for i in range(parent_layout.count()):
             widget = parent_layout.itemAt(i).widget()
             if widget and isinstance(widget, CreateAccount):
                 add_account_button_index = i
-                add_account_button = widget  # Store reference to the button
+                break
 
-        # Insert the new account before the "Add Account" button
-        if add_account_button_index is not None:
+        if add_account_button_index != -1:
+            # Insert the new account button before the "Add Account" button
             parent_layout.insertWidget(add_account_button_index, new_account)
 
-        # If users exceed 6, remove the "Add Account" button
-        if len(self.app.users) > 6 and add_account_button:
-            add_account_button.deleteLater()
+        # Delete Add account button if we have less than 6 users in the list
+        if len(self.app.users) < 6:
+            parent_layout.itemAt(add_account_button_index + 1).widget().deleteLater()
 
         # Reset the form back to the initial state after confirming
         self.reset_form()
