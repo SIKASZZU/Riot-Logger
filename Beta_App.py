@@ -1,27 +1,23 @@
 import sys
-
-from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton
-from PyQt6.QtGui import QPixmap, QFont, QCursor
-from PyQt6.QtCore import Qt
-from PIL import Image, ImageDraw
-
-from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QLineEdit, QVBoxLayout, QHBoxLayout, QScrollArea, QComboBox
-from PyQt6.QtGui import QCursor, QFont
-from PyQt6.QtCore import Qt, pyqtSignal
+import json
+import os
 
 from Beta_Api import get_data
 from Beta_Riot import RiotClient
 
 from dotenv import load_dotenv
-import os
-
-from PyQt6.QtWidgets import QComboBox, QStyledItemDelegate
-from PyQt6.QtCore import Qt
-
-import json
 from pathlib import Path
+from PIL import Image, ImageDraw
 
-# Available ranks
+from PyQt6.QtGui import QPixmap, QFont, QCursor, QIcon
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QApplication, QWidget, QLabel, \
+    QVBoxLayout, QPushButton, QLineEdit, QScrollArea, QComboBox, QStyledItemDelegate
+
+
+
+
+# Available ranks -> riot confirmed
 RANKS = {
     "Iron":         'images/iron.png',
     "Bronze":       'images/bronze.png',
@@ -34,6 +30,7 @@ RANKS = {
     "Grandmaster":  'images/grandmaster.png',
     "Challenger":   'images/challenger.png'}
 
+# Regions user can choose from -> riot confirmed
 REGIONS = [
     'Region',
     'BR1',
@@ -62,12 +59,6 @@ def get_data_path():
     return data_folder / "users_data.json"
 
 FILE_PATH = get_data_path()
-# def get_save_path():
-#     """ Save users_data.json to Documents/riot_logger folder. """
-
-#     documents_dir = os.path.join(os.path.expanduser("~"), "Documents", "riot_logger")
-#     os.makedirs(documents_dir, exist_ok=True)  # Create the directory if it doesn't exist
-#     return os.path.join(documents_dir, "users_data.json")
 
 def load_data():
     try:
@@ -437,8 +428,11 @@ class MainApp(QWidget):
         load_dotenv()
         self.riot_client = riot_client
 
-        self.setWindowTitle("Riot Logger")
-        self.setFixedSize(442, 372)   # window size changable == false
+        self.setWindowTitle("Riot Logger")  # App Name
+        self.setFixedSize(442, 372)         # Prevent resizing
+
+        # Set icon that appears in app's window header (top-left)
+        self.setWindowIcon(QIcon(get_resource_path("images/icon.ico")))  # You can also use .ico
 
         # Set background color
         self.setStyleSheet("background-color: #242424; color: white;")
@@ -504,9 +498,13 @@ class MainApp(QWidget):
 
 if __name__ == "__main__":
 
+    # Load app's icon
+    app_icon = (get_resource_path("images/icon.ico"))
+
     # Load info
     users = load_data()                   # Load user data
     q_app = QApplication(sys.argv)        # Create QApplication instance
+    q_app.setWindowIcon(QIcon(app_icon))  # load 
     riot_client = RiotClient()            # Create RiotClient instance
     main_app = MainApp(riot_client)       # Create MainApp instance
 
