@@ -385,9 +385,6 @@ class CreateAccount(QWidget):
             return
 
         # Create a new AccountButton with the provided data
-        print('confirming account', self.app)
-        print(self.arg_width)
-        print(self.arg_height)
         new_account = self.app.create_account(user, self.arg_width, self.arg_height, self.radius)
         
         self.app.users.append(user)
@@ -498,13 +495,9 @@ class MainApp(QWidget):
 
 if __name__ == "__main__":
 
-    # Load app's icon
-    app_icon = (get_resource_path("images/icon.ico"))
-
     # Load info
     users = load_data()                   # Load user data
     q_app = QApplication(sys.argv)        # Create QApplication instance
-    q_app.setWindowIcon(QIcon(app_icon))  # load 
     riot_client = RiotClient()            # Create RiotClient instance
     main_app = MainApp(riot_client)       # Create MainApp instance
 
