@@ -21,8 +21,11 @@ def check_open(title):
         subprocess.Popen(rf"C:\Riot Games\Riot Client\RiotClientServices.exe {launch_options}")
 
         while True:
+            # check again for new titles
+            windows = gw.getAllTitles()
+            open_windows = [window for window in windows if window.strip()]
+            
             client_opened = False
-
             if 'Riot Client' in open_windows: 
                 client_opened = True
    
