@@ -4,6 +4,7 @@ import os
 
 from Beta_Api import get_data
 from Beta_Riot import RiotClient
+from Beta_Open import check_open
 
 from dotenv import load_dotenv
 from pathlib import Path
@@ -499,14 +500,19 @@ class MainApp(QWidget):
 
 if __name__ == "__main__":
 
-    # Load info
-    users = load_data()                   # Load user data
-    q_app = QApplication(sys.argv)        # Create QApplication instance
-    riot_client = RiotClient()            # Create RiotClient instance
-    main_app = MainApp(riot_client)       # Create MainApp instance
+    if check_open('Logger') == True:
+        sys.exit('*Forced exit*')
 
-    # Actually do something now with info
-    riot_client.open()                    # Open Riot client connection
-    main_app.show()                       # Show the main app
+    else:
 
-    sys.exit(q_app.exec())  # event loop
+        # Load info
+        users = load_data()                   # Load user data
+        q_app = QApplication(sys.argv)        # Create QApplication instance
+        riot_client = RiotClient()            # Create RiotClient instance
+        main_app = MainApp(riot_client)       # Create MainApp instance
+
+        # Actually do something now with info
+        check_open('Client')                  # Open Riot client connection
+        main_app.show()                       # Show the main app
+
+        sys.exit(q_app.exec())  # event loop
