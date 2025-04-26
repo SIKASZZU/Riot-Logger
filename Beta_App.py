@@ -7,7 +7,7 @@ from Beta_Riot import RiotClient
 
 from dotenv import load_dotenv
 from pathlib import Path
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageEnhance
 
 from PyQt6.QtGui import QPixmap, QFont, QCursor, QIcon
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -86,6 +86,10 @@ def create_rounded_image(image_path, size, radius):
     img = Image.open(abs_image_path).convert("RGBA")
     img = img.resize(size, Image.LANCZOS)
 
+    # saturation
+    color_enchancer = ImageEnhance.Color(img)
+    img = color_enchancer.enhance(1.5)
+
     # Create rounded mask
     mask = Image.new("L", size, 0)
     draw = ImageDraw.Draw(mask)
@@ -145,23 +149,23 @@ class AccountButton(QWidget):
 
         # Account Name
         self.account_label = QLabel(self.account_name, self)
-        self.account_label.setFont(QFont("Arial", 14))
+        self.account_label.setFont(QFont("Arial", 13))
         self.account_label.setStyleSheet("color: gray; background: transparent;")
         self.account_label.setGeometry(10, 15, 250, 20)
 
         # Winrate (Centered)
         self.winrate_label = QLabel(self.winrate, self)
-        self.winrate_label.setFont(QFont("Arial", 8))
+        self.winrate_label.setFont(QFont("Arial", 9))
         self.winrate_label.setStyleSheet("color: gray; background: transparent;")
         self.winrate_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.winrate_label.setGeometry(260, 7, 140, 20)
+        self.winrate_label.setGeometry(250, 7, 155, 20)
 
         # Rank (Centered)
         self.rank_label = QLabel(self.rank, self)
-        self.rank_label.setFont(QFont("Arial", 8))
+        self.rank_label.setFont(QFont("Arial", 9))
         self.rank_label.setStyleSheet("color: gray; background: transparent;")
         self.rank_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.rank_label.setGeometry(260, 22, 140, 20)
+        self.rank_label.setGeometry(250, 22, 155, 20)
 
         # Invisible Clickable Button
         self.button = QPushButton("", self)
