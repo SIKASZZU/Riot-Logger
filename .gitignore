@@ -3,4 +3,4 @@
 dist/
 /.env
 users_data.json
-Beta_App.spec
+RiotLogger.spec
