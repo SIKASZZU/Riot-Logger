@@ -7,4 +7,4 @@ Stored with principle: visible name, log in name, password
 
 
 how to build:
-    pyinstaller --noconsole --onefile --icon=images/icon.ico --add-data="images;images" Beta_App.py
+    pyinstaller --noconsole --onefile --icon=images/icon.ico --add-data="images;images" --name RiotLogger Beta_App.py
