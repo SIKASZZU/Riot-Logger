@@ -12,11 +12,11 @@ class RiotClient:
     def __init__(self):
 
         self.normalized_size        = (1536, 864)
-        self.normal_user_xy         = (200, 275)
+        self.normal_user_xy         = (200, 250)
         self.normal_pass_xy         = (200, 320)
         self.normal_login_button_xy = (200, 700)
         
-        self.user_xy         = (200, 275)
+        self.user_xy         = (200, 250)
         self.pass_xy         = (200, 320)
         self.login_button_xy = (200, 700)
 
