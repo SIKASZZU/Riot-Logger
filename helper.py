@@ -6,21 +6,56 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageEnhance
 from PyQt6.QtGui import QPixmap
 
+FADE_SATURAION = 1.5
+BORDER_SATURAION = 1
 
-# Available ranks -> riot confirmed
-RANKS = {
-    "Iron":         'images/iron.png',
-    "Bronze":       'images/bronze.png',
-    "Silver":       'images/silver.png',
-    "Gold":         'images/gold.png',
-    "Platinum":     'images/platinum.png',
-    "Emerald":      'images/emerald.png',
-    "Diamond":      'images/diamond.png',
-    "Master":       'images/master.png',
-    "Grandmaster":  'images/grandmaster.png',
-    "Challenger":   'images/challenger.png'}
+# Button sizes
+button_width = 500
+button_height = 100
+button_radius = 24
 
-# Regions user can choose from -> riot confirmed
+
+RANKS = [
+    "Iron",
+    "Bronze",
+    "Silver",
+    "Gold",
+    "Platinum",
+    "Emerald",
+    "Diamond",
+    "Master",
+    "Grandmaster",
+    "Challenger",
+]
+
+RANKS_PATH_FADE = {
+    "Unranked":     'images/fade/temp_rounded.png',
+    "Iron":         'images/fade/iron.png',
+    "Bronze":       'images/fade/bronze.png',
+    "Silver":       'images/fade/silver.png',
+    "Gold":         'images/fade/gold.png',
+    "Platinum":     'images/fade/platinum.png',
+    "Emerald":      'images/fade/emerald.png',
+    "Diamond":      'images/fade/diamond.png',
+    "Master":       'images/fade/master.png',
+    "Grandmaster":  'images/fade/grandmaster.png',
+    "Challenger":   'images/fade/challenger.png'
+}
+
+RANKS_PATH_BORDER = {
+    "Unranked":     'images/border/temp_rounded.png', # fix this shit, diamond as default?
+    "Iron":         'images/border/iron.png',
+    "Bronze":       'images/border/bronze.png',
+    "Silver":       'images/border/silver.png',
+    "Gold":         'images/border/gold.png',
+    "Platinum":     'images/border/platinum.png',
+    "Emerald":      'images/border/emerald.png',
+    "Diamond":      'images/border/diamond.png',
+    "Master":       'images/border/master.png',
+    "Grandmaster":  'images/border/grandmaster.png',
+    "Challenger":   'images/border/challenger.png'
+}
+
 REGIONS = [
     'Region',
     'BR1',
@@ -70,15 +105,16 @@ def get_resource_path(relative_path):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.abspath(relative_path)
 
-def create_rounded_image(image_path, size, radius):
+def create_fade_image(image_path, size, radius):
     """Creates a rounded image with PIL and converts it to QPixmap."""
+    print(image_path)
     abs_image_path = get_resource_path(image_path)
     img = Image.open(abs_image_path).convert("RGBA")
     img = img.resize(size, Image.LANCZOS)
 
     # saturation
     color_enchancer = ImageEnhance.Color(img)
-    img = color_enchancer.enhance(1.5)
+    img = color_enchancer.enhance(FADE_SATURAION)
 
     # Create rounded mask
     mask = Image.new("L", size, 0)
@@ -89,5 +125,32 @@ def create_rounded_image(image_path, size, radius):
     img.putalpha(mask)
 
     # Convert to QPixmap
-    img.save(get_resource_path("images/temp_rounded.png"))  # Temporary save for conversion
-    return QPixmap(get_resource_path("images/temp_rounded.png"))
+    img.save(get_resource_path(RANKS_PATH_FADE['Unranked']))  # Temporary save for conversion
+    return QPixmap(get_resource_path(RANKS_PATH_FADE['Unranked']))
+
+def create_border_image(image_path):
+    """Creates a rounded image with PIL and converts it to QPixmap."""
+    if image_path == None:
+        return
+    abs_image_path = get_resource_path(image_path)
+    img = Image.open(abs_image_path).convert("RGBA")
+
+    border_width = img.width
+    border_height = img.height
+    img = img.resize((round(border_width * 0.5), round(border_height * 0.5)), Image.Resampling.NEAREST)
+
+    # saturation
+    color_enchancer = ImageEnhance.Color(img)
+    img = color_enchancer.enhance(BORDER_SATURAION)
+
+    # # Create rounded mask
+    # mask = Image.new("L", size, 0)
+    # draw = ImageDraw.Draw(mask)
+    # draw.rounded_rectangle((0, 0, size[0], size[1]), radius, fill=255)
+
+    # # Apply rounded mask to image
+    # img.putalpha(mask)
+
+    # Convert to QPixmap
+    img.save(get_resource_path(RANKS_PATH_BORDER['Unranked']))  # Temporary save for conversion
+    return QPixmap(get_resource_path(RANKS_PATH_BORDER['Unranked']))

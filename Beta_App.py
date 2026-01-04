@@ -1,13 +1,15 @@
 import sys
 import os
+import jurigged
+jurigged.watch()  # watches current directory
 
-from helper import RANKS, REGIONS, create_rounded_image, get_resource_path, save_data, load_data
+from helper import RANKS, RANKS_PATH_FADE, RANKS_PATH_BORDER, REGIONS, create_fade_image, create_border_image, get_resource_path, save_data, load_data
+from helper import button_height, button_radius, button_width
 from Beta_Api import get_data
 from Beta_Riot import RiotClient
 from Beta_Open import check_open
 
 from dotenv import load_dotenv
-from PIL import Image, ImageDraw, ImageEnhance
 
 from PyQt6.QtGui import QPixmap, QFont, QCursor, QIcon
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -25,7 +27,8 @@ class AccountButton(QWidget):
         
         self.setFixedSize(width, height)
 
-        self.account_name = f"{user_data['riot_id']} # {user_data['tagline']}"
+        self.account_name_w_tagline = f"{user_data['riot_id']} # {user_data['tagline']}"
+        self.account_name = f"{user_data['riot_id']}"
         self.username = user_data['username']
         self.password = user_data['password']
         self.riot_id = user_data['riot_id']
@@ -44,7 +47,11 @@ class AccountButton(QWidget):
         ranked_info = get_data(self.riot_id, self.tagline, self.region, api_key)
 
         if ranked_info == (None, None) or ranked_info == None:
-            print(f'{self.account_name} | Unranked')
+            ranked_info = 'Unranked'
+            image_fade_path = RANKS_PATH_FADE[ranked_info]
+            image_border_path = None
+            print(f'{self.account_name} | {ranked_info}')
+
         
         else:
             print(f'{self.account_name} | {ranked_info}')
@@ -52,36 +59,73 @@ class AccountButton(QWidget):
 
             rank = rank.capitalize()
             if rank in RANKS:
-                image_path = RANKS[rank]
+                image_fade_path = RANKS_PATH_FADE[rank]
+                image_border_path = RANKS_PATH_BORDER[rank]
 
         # Load rounded image
-        self.bg_pixmap = create_rounded_image(image_path, (width, height), radius)
+        self.fade_pixmap = create_fade_image(image_fade_path, (width, height), radius)
+        self.border_pixmap = create_border_image(image_border_path)
 
-        # Background Label (Image)
-        self.bg_label = QLabel(self)
-        self.bg_label.setPixmap(self.bg_pixmap)
-        self.bg_label.setScaledContents(True)
-        self.bg_label.setGeometry(0, 0, width, height)
+        # --------- IMAGES --------- #
+
+        # Background Label. Always present
+        self.fade_label = QLabel(self)
+        self.fade_label.setPixmap(self.fade_pixmap)
+        self.fade_label.setScaledContents(True)
+        self.fade_label.setGeometry(0, 0, width, height)
+
+        # Border // if unranked crashes
+        if (self.border_pixmap != None):
+            self.border_label = QLabel(self)
+            self.border_label.setPixmap(self.border_pixmap)
+            self.border_label.setScaledContents(True)
+            border_width = self.border_pixmap.width()
+            border_height = self.border_pixmap.height()
+            self.border_label.setStyleSheet("background: transparent; border: none;")
+            self.border_label.setGeometry(0, -button_height//2, border_width, border_height)
+
+        # --------- TEXT --------- #
 
         # Account Name
         self.account_label = QLabel(self.account_name, self)
-        self.account_label.setFont(QFont("Arial", 13))
+        self.account_label.setFont(QFont("Arial", 16))
         self.account_label.setStyleSheet("color: gray; background: transparent;")
-        self.account_label.setGeometry(10, 15, 250, 20)
+        al_start_x = button_width // 3
+        al_start_y = 0 # button_height // 3
+        self.account_label.setGeometry(
+            al_start_x,
+            al_start_y,
+            button_width - al_start_x,
+            button_height - al_start_y
+        )
 
         # Winrate (Centered)
         self.winrate_label = QLabel(self.winrate, self)
         self.winrate_label.setFont(QFont("Arial", 9))
         self.winrate_label.setStyleSheet("color: gray; background: transparent;")
         self.winrate_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.winrate_label.setGeometry(250, 7, 155, 20)
+        winrate_start_x = button_width - button_width // 3
+        winrate_start_y = button_height // 2
+        self.winrate_label.setGeometry(
+            winrate_start_x,
+            winrate_start_y,
+            button_width - winrate_start_x,
+            winrate_start_y
+        )
 
         # Rank (Centered)
         self.rank_label = QLabel(self.rank, self)
         self.rank_label.setFont(QFont("Arial", 9))
         self.rank_label.setStyleSheet("color: gray; background: transparent;")
         self.rank_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.rank_label.setGeometry(250, 22, 155, 20)
+        rank_start_x = button_width - button_width // 3
+        rank_start_y = button_height // 3
+        self.rank_label.setGeometry(
+            al_start_x,
+            winrate_start_y,
+            button_width - rank_start_x,
+            winrate_start_y
+        )
 
         # Invisible Clickable Button
         self.button = QPushButton("", self)
@@ -142,13 +186,13 @@ class CreateAccount(QWidget):
 
         self.default_height = height  # Store default height
         self.expanded_height = height + 120  # Adjust height for entries
-        self.minimized_image_path = "images/create_new.png"
-        self.expanded_image_path = "images/expanded_create_new.png"
+        self.minimized_image_path = "images/fade/create_new.png"
+        self.expanded_image_path = "images/fade/expanded_create_new.png"
 
         self.setFixedSize(width, self.default_height)
 
         # Load rounded image
-        self.bg_pixmap = create_rounded_image(self.minimized_image_path, (width, height), 0)
+        self.bg_pixmap = create_fade_image(self.minimized_image_path, (width, height), 0)
 
         # Background Label (Image)
         self.bg_label = QLabel(self)
@@ -177,8 +221,8 @@ class CreateAccount(QWidget):
         )
         self.button.clicked.connect(self.expand_form)
 
-        # Load rounded image
-        self.expanded_bg_pixmap = create_rounded_image(self.expanded_image_path, (width, self.expanded_height), 0)
+        # Load fade image
+        self.expanded_bg_pixmap = create_fade_image(self.expanded_image_path, (width, self.expanded_height), 0)
 
         # Background Label (Image)
         self.expanded_bg_label = QLabel(self)
@@ -345,7 +389,7 @@ class MainApp(QWidget):
         self.riot_client = riot_client
 
         self.setWindowTitle("Riot Logger")  # App Name
-        self.setFixedSize(442, 372)         # Prevent resizing
+        self.setFixedSize(542, 472)         # Prevent resizing
 
         # Set icon that appears in app's window header (top-left)
         self.setWindowIcon(QIcon(get_resource_path("images/icon.ico")))  # You can also use .ico
@@ -357,11 +401,6 @@ class MainApp(QWidget):
 
         self.username = None
         self.password = None
-
-        # Button sizes
-        width = 400
-        height = 50
-        radius = 15
 
         # Create a scrollable area for the account buttons
         scroll_area = QScrollArea(self)
@@ -382,15 +421,15 @@ class MainApp(QWidget):
         create_account_count = max_accounts_visible - len(self.users)
         
         for user in self.users:
-            self.create_account(user, width, height, radius)
+            self.create_account(user, button_width, button_height, button_radius)
             
         # Add Create Account button
         for i in range(create_account_count):
-           create_account_widget = CreateAccount(self, width, height, radius, scroll_area)
+           create_account_widget = CreateAccount(self, button_width, button_height, button_radius, scroll_area)
            self.scroll_layout.addWidget(create_account_widget)
 
         if create_account_count <= 0:  # ehk visible acce on 6 voi rohkem ning peab lisama eraldi new acc buttoni 
-            create_account_widget = CreateAccount(self, width, height, radius, scroll_area)
+            create_account_widget = CreateAccount(self, button_width, button_height, button_radius, scroll_area)
             self.scroll_layout.addWidget(create_account_widget)
 
         # Add the scroll area to the main layout
@@ -398,8 +437,8 @@ class MainApp(QWidget):
 
         self.setLayout(layout)
         
-    def create_account(self, user, width, height, radius):
-        account_button = AccountButton(user, width, height, radius)
+    def create_account(self, user, button_width, button_height, button_radius):
+        account_button = AccountButton(user, button_width, button_height, button_radius)
         account_button.clicked_account.connect(self.on_signal_received)
         self.scroll_layout.addWidget(account_button)
         return account_button

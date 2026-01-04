@@ -8,7 +8,8 @@ class RiotAPI:
         self.base_urls = {
             "ranked": f"https://{region}.api.riotgames.com/lol/league/v4/entries/by-puuid/",
             "account": "https://europe.api.riotgames.com",
-            "summoner": f"https://{region}.api.riotgames.com/lol/league/v1/accounts/by-summoner/"
+            "summoner": f"https://{region}.api.riotgames.com/lol/league/v1/accounts/by-summoner/",
+            "icon": 'http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons'
         }
         self.headers = {"X-Riot-Token": self.api_key}
 
