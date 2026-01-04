@@ -122,7 +122,9 @@ class AccountButton(QWidget):
         self.winrate = None
         self.rank = None
 
-        api_key = os.getenv('riot_api_key')
+        load_dotenv('getenv.env')
+        api_key = os.getenv('api_key')
+
         if not api_key:
             raise ValueError("API key not found. Check your .env file.")
 
@@ -427,7 +429,6 @@ class MainApp(QWidget):
 
     def __init__(self, riot_client):
         super().__init__()
-        load_dotenv()
         self.riot_client = riot_client
 
         self.setWindowTitle("Riot Logger")  # App Name

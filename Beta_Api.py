@@ -6,23 +6,21 @@ class RiotAPI:
         self.api_key = api_key
         self.region = region
         self.base_urls = {
+            "ranked": f"https://{region}.api.riotgames.com/lol/league/v4/entries/by-puuid/",
             "account": "https://europe.api.riotgames.com",
-            "summoner": f"https://{region}.api.riotgames.com"
+            "summoner": f"https://{region}.api.riotgames.com/lol/league/v1/accounts/by-summoner/"
         }
         self.headers = {"X-Riot-Token": self.api_key}
 
+    # puuid by submitted gameName and tagLine
     def get_puuid(self, game_name: str, tagline: str):
         url = f"{self.base_urls['account']}/riot/account/v1/accounts/by-riot-id/{game_name}/{tagline}"
         response = requests.get(url, headers=self.headers)
         return self._handle_response(response, "puuid")
 
-    def get_summoner_id(self, puuid: str):
-        url = f"{self.base_urls['summoner']}/lol/summoner/v4/summoners/by-puuid/{puuid}"
-        response = requests.get(url, headers=self.headers)
-        return self._handle_response(response, "id")
-
-    def get_ranked_data(self, summoner_id: str):
-        url = f"{self.base_urls['summoner']}/lol/league/v4/entries/by-summoner/{summoner_id}"
+    # ranked info by puuid
+    def get_ranked_data(self, puuid: str):
+        url = f"{self.base_urls['ranked']}{puuid}"
         response = requests.get(url, headers=self.headers)
         if response.status_code == 200:
             ranked_data = response.json()
@@ -50,12 +48,7 @@ class RiotAPI:
             print("Could not retrieve PUUID.")
             return None
 
-        summoner_id = self.get_summoner_id(puuid)
-        if not summoner_id:
-            print("Could not retrieve Summoner ID.")
-            return None
-
-        ranked_info = self.get_ranked_data(summoner_id)
+        ranked_info = self.get_ranked_data(puuid)
         if ranked_info:
             rank, winrate = ranked_info
             tier, rank, lp = rank
@@ -79,10 +72,11 @@ if __name__ == "__main__":
     import os
     from dotenv import load_dotenv
 
-    load_dotenv()
-    api_key = os.getenv('riot_api_key')
+    load_dotenv('getenv.env')
+    api_key = os.getenv('api_key')
     if not api_key:
-        raise ValueError("API key not found. Check your .env file.")
+        raise ValueError("API key not found.")
 
-    data = get_data('revert conq zzzz', 'mrcha', 'EUW1', api_key)
+    print()
+    data = get_data('Lando Verstappen', '1814', 'EUW1', api_key)
     print(data)
