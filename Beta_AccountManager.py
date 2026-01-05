@@ -6,8 +6,8 @@ from helper import *
 from Beta_Api import get_data
 from dotenv import load_dotenv
 
-from PyQt6.QtGui import QPixmap, QFont, QCursor, QImage
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPixmap, QFont, QCursor, QImage, QDrag
+from PyQt6.QtCore import Qt, pyqtSignal, QMimeData, QPoint
 from PyQt6.QtWidgets import QWidget, QLabel, QPushButton
 
 class AccountManager(QWidget):
@@ -82,9 +82,14 @@ class AccountManager(QWidget):
             else:
                 self.show_delete_button()
             return
-        # Left / other clicks: hide delete button and emit signal
-        self.hide_delete_button()
-        self.clicked_account.emit(self.username, self.password)  # Emit signal with data
+
+        # Left/other clicks: prepare for possible drag; don't emit immediately
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_start_pos = event.pos()
+            self._dragging = False
+            self.hide_delete_button()
+
+        return
     clicked_account = pyqtSignal(str, str)  # Define signal with username and password
 
     def enterEvent(self, event):
@@ -101,6 +106,45 @@ class AccountManager(QWidget):
 
     def on_click(self):
         self.clicked_account.emit(self.username, self.password)  # Emit signal with data
+
+    def mouseMoveEvent(self, event):
+        # Start a drag if the left button was pressed and moved sufficiently
+        if getattr(self, '_drag_start_pos', None) is None:
+            return
+        if not (event.buttons() & Qt.MouseButton.LeftButton):
+            return
+        dist = (event.pos() - self._drag_start_pos).manhattanLength()
+        from PyQt6.QtWidgets import QApplication
+        if dist < QApplication.startDragDistance():
+            return
+
+        # Begin drag
+        self._dragging = True
+        drag = QDrag(self)
+        mime = QMimeData()
+        mime.setText(f"{self.riot_id}|{self.username}")
+        drag.setMimeData(mime)
+
+        # Use a pixmap snapshot of the widget for the drag cursor
+        try:
+            pix = self.grab()
+            drag.setPixmap(pix)
+        except Exception:
+            pass
+
+        drag.exec()
+
+    def mouseReleaseEvent(self, event):
+        # If it wasn't a drag, treat as a click
+        if getattr(self, '_dragging', False):
+            self._dragging = False
+            self._drag_start_pos = None
+            return
+
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked_account.emit(self.username, self.password)
+            self._drag_start_pos = None
+            return
 
     def __init__(self, user_data, width, height, radius, image_path='images/default.png', parent=None):
         super().__init__(parent)
@@ -305,7 +349,9 @@ class AccountManager(QWidget):
         )
 
         self.button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))  # Set cursor to hand
-        self.button.clicked.connect(self.on_click)
+        # Let the parent widget receive mouse events so dragging works;
+        # we handle clicks in mouseReleaseEvent instead.
+        self.button.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         # Ensure op.gg button is above the invisible overlay and doesn't steal focus
         if hasattr(self, 'opgg_btn'):
             self.opgg_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
