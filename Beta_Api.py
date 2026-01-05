@@ -29,26 +29,27 @@ class RiotAPI:
                 if entry['queueType'] == 'RANKED_SOLO_5x5':
                     tier, rank, lp = entry['tier'], entry['rank'], entry['leaguePoints']
                     wins, losses = entry['wins'], entry['losses']
+                    hotStreak = entry['hotStreak']
                     winrate = round((wins / (wins + losses)) * 100, 1)
-                    return (tier, rank, lp), (wins, losses, winrate)
+                    return {
+                        'tier': tier,
+                        'rank': rank,
+                        'lp': lp,
+                        'wins': wins,
+                        'losses': losses,
+                        'winrate': winrate,
+                        'hotStreak': hotStreak,
+                        }
             return None
         else:
             print(f"Error {response.status_code}: {response.json()}")
             return None
 
     def get_icon_id(self, puuid):
-        # # Step 1: Account info by PUUID
-        # account_url = f"{self.base_urls['account']}/riot/account/v1/accounts/by-puuid/{puuid}"
-        # account_resp = requests.get(account_url, headers=self.headers)
-        # account_data = account_resp.json()
-        # print("Account data:", account_data)
-        # # response = requests.get(url, headers=self.headers)
-        # # return self._handle_response(response, "puuid")
         url = f"{self.base_urls['summoner']}{puuid}" 
         response = requests.get(url, headers=self.headers) 
-        data = response.json() 
-        iconID = data.get('profileIconId')
-        return iconID
+        # iconID = data.get('profileIconId')
+        return self._handle_response(response, 'profileIconId')
 
     @staticmethod
     def _handle_response(response, key):
@@ -58,25 +59,20 @@ class RiotAPI:
         return None
 
     def get_player_data(self, game_name: str, tagline: str):
+
         puuid = self.get_puuid(game_name, tagline)
         if not puuid:
             print("Could not retrieve PUUID.")
             return None
+
         iconID = self.get_icon_id(puuid)
         ranked_info = self.get_ranked_data(puuid)
-        if ranked_info:
-            rank, winrate = ranked_info
-            tier, rank, lp = rank
-            wins, losses, winrate = winrate
 
-            rank = tier, f"{tier} {rank} - {lp} LP"
-            winrate = f"{wins}W/{losses}L - {winrate}% WR"
+        ranked_info.update({
+            'iconID': iconID
+        })
 
-        else:
-            winrate = None
-            rank = None
-
-        return rank, winrate, iconID
+        return ranked_info
 
 
 def get_data(game_name, tagline, region, api_key):
@@ -93,5 +89,5 @@ if __name__ == "__main__":
         raise ValueError("API key not found.")
 
     print()
-    data = get_data('Lando Verstappen', '1814', 'EUW1', api_key)
+    data = get_data('TwTv RiverSanzu', '0000', 'EUN1', api_key)
     print(data)

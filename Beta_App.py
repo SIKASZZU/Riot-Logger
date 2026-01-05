@@ -1,9 +1,12 @@
 import sys
 import os
 import requests
+import webbrowser
+from urllib.parse import quote
 from PyQt6.QtGui import QImage, QPixmap
 
-from helper import RANKS, RANKS_PATH_FADE, RANKS_PATH_BORDER, REGIONS, create_fade_image, create_circular_icon, create_border_image, get_resource_path, save_data, load_data
+from helper import RANKS, RANKS_PATH_FADE, RANKS_PATH_BORDER, REGIONS, \
+    create_fade_image, create_circular_icon, create_border_image, get_resource_path, save_data, load_data, create_hot_streak
 from helper import button_height, button_radius, button_width
 from Beta_Api import get_data
 from Beta_Riot import RiotClient
@@ -75,6 +78,14 @@ class AccountButton(QWidget):
         if hasattr(self, 'delete_cancel_btn') and self.delete_cancel_btn:
             self.delete_cancel_btn.hide()
 
+    def open_opgg(self):
+        try:
+            url = f"{self.base_urls['opgg']}{self.account_name}-{self.tagline}" # quote(self.riot_id)
+            print('review site url: ', url)
+            webbrowser.open(url)
+        except Exception as e:
+            print(f"Failed to open op.gg: {e}")
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.RightButton:
             # Toggle delete button visibility on right-click
@@ -93,7 +104,7 @@ class AccountButton(QWidget):
 
         self.setFixedSize(width, height)
 
-        self.account_name_w_tagline = f"{user_data['riot_id']} # {user_data['tagline']}"
+        self.account_name_w_tagline = f"{user_data['riot_id']}#{user_data['tagline']}"
         self.account_name = f"{user_data['riot_id']}"
         self.username = user_data['username']
         self.password = user_data['password']
@@ -101,38 +112,61 @@ class AccountButton(QWidget):
         self.tagline = user_data['tagline']
         self.region = user_data['region']
 
+        self.hotStreak = None
         self.winrate = None
         self.rank = None
         self.iconID = None
-        self.base_urls = {
-            "icon": 'http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons/'
+        # regionStripped = self.region.rstrip("0123456789")
+        regionQuery = {
+            'BR1': 'BR',
+            'EUN1': 'EUNE',
+            'EUW1': 'EUW',
+            'JP1': 'JP',
+            'KR': 'KR',
+            'LA1': 'LA',
+            'LA2': 'LA',
+            'ME1': 'BR',
+            'NA1': 'NA',
+            'OC1': 'OCE',
+            'RU': 'BR',
+            'SG2': 'BR',
+            'TR1': 'BR',
+            'TW2': 'BR',
+            'VN2': 'BR'
         }
 
-        self.border_label = None
+        self.base_urls = {
+            "icon": 'http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons/',
+            "opgg": f'https://op.gg/lol/summoners/{regionQuery[self.region]}/'
+        }
 
         load_dotenv('getenv.env')
         api_key = os.getenv('api_key')
+
+        hotStreak_image_path = 'images/hotStreak.png'
 
         if not api_key:
             raise ValueError("API key not found. Check your .env file.")
 
         ranked_info = get_data(self.riot_id, self.tagline, self.region, api_key)
-        if ranked_info == (None, None, None) or ranked_info == (None, None) or ranked_info == None:
+        if ranked_info == None or ranked_info['tier'] == None:
             ranked_info = 'Unranked'
             image_fade_path = RANKS_PATH_FADE[ranked_info]
             image_border_path = None
-            print(f'{self.account_name} | {ranked_info}')
 
         else:
-            print(f'{self.account_name} | {ranked_info}')
-            print(ranked_info)
-            (rank, self.rank), self.winrate, _ = ranked_info
-            self.iconID = ranked_info[-1]
-            rank = rank.capitalize()
 
-            if rank in RANKS:
-                image_fade_path = RANKS_PATH_FADE[rank]
-                image_border_path = RANKS_PATH_BORDER[rank]
+            self.winrate = f'{ranked_info['winrate']}%  {ranked_info['wins']}W {ranked_info['losses']}L'
+            self.rank = f'{ranked_info['tier']} {ranked_info['rank']} {ranked_info['lp']}LP'
+            self.iconID = ranked_info['iconID']
+            self.hotStreak = ranked_info['hotStreak']
+            tier = ranked_info['tier']
+            tier = tier.capitalize()
+
+            if tier in RANKS:
+                image_fade_path = RANKS_PATH_FADE[tier]
+                image_border_path = RANKS_PATH_BORDER[tier]
+        print(f'{self.account_name} | {ranked_info}\n')
 
         # Load rounded image
         self.fade_pixmap = create_fade_image(image_fade_path, (width, height), radius)
@@ -231,6 +265,22 @@ class AccountButton(QWidget):
             winrate_start_y
         )
 
+        # Rank (Centered)
+        if (self.hotStreak):
+            self.hotStreak_pixmap = create_hot_streak(hotStreak_image_path)
+            self.hotStreak_label = QLabel(self)
+            self.hotStreak_label.setPixmap(self.hotStreak_pixmap)
+            self.hotStreak_label.setGeometry(0, round(button_height // 2.5), self.hotStreak_pixmap.width(), self.hotStreak_pixmap.height())
+            self.hotStreak_label.setStyleSheet('background: transparent;')
+            self.hotStreak_label.setToolTip('Hotstreak')
+            self.hotStreak_label.raise_()
+
+        self.opgg_btn = QPushButton("op.gg", self)
+        self.opgg_btn.setGeometry(button_width - 64, 6, 48, 20)
+        self.opgg_btn.setStyleSheet("background: rgba(0,0,0,0); color: #cfcfcf; border: none; font-size:10px;")
+        self.opgg_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.opgg_btn.clicked.connect(self.open_opgg)
+
         # Invisible Clickable Button
         self.button = QPushButton("", self)
         self.button.setGeometry(0, 0, width, height)
@@ -254,9 +304,10 @@ class AccountButton(QWidget):
 
         self.button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))  # Set cursor to hand
         self.button.clicked.connect(self.on_click)
-
-        if (self.border_label):
-            self.border_label.raise_()
+        # Ensure op.gg button is above the invisible overlay and doesn't steal focus
+        if hasattr(self, 'opgg_btn'):
+            self.opgg_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            self.opgg_btn.raise_()
 
     def enterEvent(self, event):
         """ Change account label color to white on hover """

@@ -1,10 +1,11 @@
 import os
 import json
 import sys
+import io
 
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageEnhance
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QImage
 
 FADE_SATURAION = 1.5
 BORDER_SATURAION = 1
@@ -107,7 +108,18 @@ def get_resource_path(relative_path):
 
 def create_fade_image(image_path, size, radius):
     """Creates a rounded image with PIL and converts it to QPixmap."""
-    print(image_path)
+    if image_path == None:
+        print(f'ERROR! create_fade_image image_path {image_path}')
+        return
+    
+    if size[0] <= 0 or size[1] <= 0 or size == None:
+        print(f'ERROR! create_fade_image size {size}')
+        return
+
+    if radius < 0 or radius == None:
+        print(f'ERROR! create_fade_image radius {radius}')
+        return
+
     abs_image_path = get_resource_path(image_path)
     img = Image.open(abs_image_path).convert("RGBA")
     img = img.resize(size, Image.LANCZOS)
@@ -131,6 +143,7 @@ def create_fade_image(image_path, size, radius):
 def create_border_image(image_path):
     """Creates a rounded image with PIL and converts it to QPixmap."""
     if image_path == None:
+        print(f'ERROR! create_border_image image_path {image_path}')
         return
     abs_image_path = get_resource_path(image_path)
     img = Image.open(abs_image_path).convert("RGBA")
@@ -146,19 +159,16 @@ def create_border_image(image_path):
     img.save(get_resource_path(RANKS_PATH_BORDER['Unranked']))  # Temporary save for conversion
     return QPixmap(get_resource_path(RANKS_PATH_BORDER['Unranked']))
 
-def create_circular_icon(image_data):
+def create_circular_icon(image_path):
     """
     Takes image data (bytes or file path), creates a circular 50x50 image, and returns a QPixmap.
     """
-    from PIL import Image, ImageDraw
-    from PyQt6.QtGui import QPixmap, QImage
-    import io
 
     # Load image from bytes or file path
-    if isinstance(image_data, bytes):
-        img = Image.open(io.BytesIO(image_data)).convert("RGBA")
+    if isinstance(image_path, bytes):
+        img = Image.open(io.BytesIO(image_path)).convert("RGBA")
     else:
-        img = Image.open(image_data).convert("RGBA")
+        img = Image.open(image_path).convert("RGBA")
 
     img_w = 45
     img_h = 45
@@ -170,6 +180,25 @@ def create_circular_icon(image_data):
     draw = ImageDraw.Draw(mask)
     draw.ellipse((0, 0, img_w, img_h), fill=255)
     img.putalpha(mask)
+
+    # Convert to QPixmap
+    data = io.BytesIO()
+    img.save(data, format='PNG')
+    qimg = QImage.fromData(data.getvalue())
+    return QPixmap.fromImage(qimg)
+
+def create_hot_streak(image_path):
+
+    if image_path == None:
+        print(f'ERROR! create_hot_streak image_path {image_path}')
+        return
+    abs_image_path = get_resource_path(image_path)
+    img = Image.open(abs_image_path).convert("RGBA")
+
+    img_w = 25
+    img_h = 25
+
+    img = img.resize((img_w, img_h), Image.Resampling.BICUBIC)
 
     # Convert to QPixmap
     data = io.BytesIO()
