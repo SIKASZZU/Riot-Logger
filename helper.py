@@ -97,7 +97,7 @@ def load_data():
     
 def save_data(users):
     with open(FILE_PATH, "w") as f:
-        json.dump(users, f, indent=4)
+        json.dump(users, f)
 
 def get_resource_path(relative_path):
     """Get absolute path to resource, works for development and PyInstaller onefile mode."""
@@ -137,20 +137,42 @@ def create_border_image(image_path):
 
     border_width = img.width
     border_height = img.height
-    img = img.resize((round(border_width * 0.5), round(border_height * 0.5)), Image.Resampling.NEAREST)
+    img = img.resize((round(border_width * 0.5), round(border_height * 0.5)), Image.Resampling.BICUBIC)
 
-    # saturation
     color_enchancer = ImageEnhance.Color(img)
     img = color_enchancer.enhance(BORDER_SATURAION)
-
-    # # Create rounded mask
-    # mask = Image.new("L", size, 0)
-    # draw = ImageDraw.Draw(mask)
-    # draw.rounded_rectangle((0, 0, size[0], size[1]), radius, fill=255)
-
-    # # Apply rounded mask to image
-    # img.putalpha(mask)
 
     # Convert to QPixmap
     img.save(get_resource_path(RANKS_PATH_BORDER['Unranked']))  # Temporary save for conversion
     return QPixmap(get_resource_path(RANKS_PATH_BORDER['Unranked']))
+
+def create_circular_icon(image_data):
+    """
+    Takes image data (bytes or file path), creates a circular 50x50 image, and returns a QPixmap.
+    """
+    from PIL import Image, ImageDraw
+    from PyQt6.QtGui import QPixmap, QImage
+    import io
+
+    # Load image from bytes or file path
+    if isinstance(image_data, bytes):
+        img = Image.open(io.BytesIO(image_data)).convert("RGBA")
+    else:
+        img = Image.open(image_data).convert("RGBA")
+
+    img_w = 45
+    img_h = 45
+
+    img = img.resize((img_w, img_h), Image.Resampling.BICUBIC)
+
+    # Create circular mask
+    mask = Image.new('L', (img_w, img_h), 0)
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse((0, 0, img_w, img_h), fill=255)
+    img.putalpha(mask)
+
+    # Convert to QPixmap
+    data = io.BytesIO()
+    img.save(data, format='PNG')
+    qimg = QImage.fromData(data.getvalue())
+    return QPixmap.fromImage(qimg)

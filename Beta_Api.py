@@ -8,8 +8,8 @@ class RiotAPI:
         self.base_urls = {
             "ranked": f"https://{region}.api.riotgames.com/lol/league/v4/entries/by-puuid/",
             "account": "https://europe.api.riotgames.com",
-            "summoner": f"https://{region}.api.riotgames.com/lol/league/v1/accounts/by-summoner/",
-            "icon": 'http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons'
+            "summoner": f"https://{region}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/",
+            "icon": 'http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons/'
         }
         self.headers = {"X-Riot-Token": self.api_key}
 
@@ -36,6 +36,20 @@ class RiotAPI:
             print(f"Error {response.status_code}: {response.json()}")
             return None
 
+    def get_icon_id(self, puuid):
+        # # Step 1: Account info by PUUID
+        # account_url = f"{self.base_urls['account']}/riot/account/v1/accounts/by-puuid/{puuid}"
+        # account_resp = requests.get(account_url, headers=self.headers)
+        # account_data = account_resp.json()
+        # print("Account data:", account_data)
+        # # response = requests.get(url, headers=self.headers)
+        # # return self._handle_response(response, "puuid")
+        url = f"{self.base_urls['summoner']}{puuid}" 
+        response = requests.get(url, headers=self.headers) 
+        data = response.json() 
+        iconID = data.get('profileIconId')
+        return iconID
+
     @staticmethod
     def _handle_response(response, key):
         if response.status_code == 200:
@@ -48,7 +62,7 @@ class RiotAPI:
         if not puuid:
             print("Could not retrieve PUUID.")
             return None
-
+        iconID = self.get_icon_id(puuid)
         ranked_info = self.get_ranked_data(puuid)
         if ranked_info:
             rank, winrate = ranked_info
@@ -62,7 +76,7 @@ class RiotAPI:
             winrate = None
             rank = None
 
-        return rank, winrate
+        return rank, winrate, iconID
 
 
 def get_data(game_name, tagline, region, api_key):

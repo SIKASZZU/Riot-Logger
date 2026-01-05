@@ -1,9 +1,9 @@
 import sys
 import os
-import jurigged
-jurigged.watch()  # watches current directory
+import requests
+from PyQt6.QtGui import QImage, QPixmap
 
-from helper import RANKS, RANKS_PATH_FADE, RANKS_PATH_BORDER, REGIONS, create_fade_image, create_border_image, get_resource_path, save_data, load_data
+from helper import RANKS, RANKS_PATH_FADE, RANKS_PATH_BORDER, REGIONS, create_fade_image, create_circular_icon, create_border_image, get_resource_path, save_data, load_data
 from helper import button_height, button_radius, button_width
 from Beta_Api import get_data
 from Beta_Riot import RiotClient
@@ -16,15 +16,81 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QApplication, QWidget, QLabel, \
     QVBoxLayout, QPushButton, QLineEdit, QScrollArea, QComboBox, QStyledItemDelegate
 
-
-
-
 class AccountButton(QWidget):
+    def show_delete_button(self):
+        # Show two action buttons (Delete / Don't delete) centered under the account label.
+        # Create buttons lazily.
+        label_geom = self.account_label.geometry()
+        btn_w = 110
+        btn_h = 24
+        spacing = 10
+        total_w = btn_w * 2 + spacing
+        start_x = label_geom.x() + max(0, (label_geom.width() - total_w) // 2)
+        by = label_geom.y() + label_geom.height() // 2 - btn_h // 2
+
+        if not hasattr(self, 'delete_confirm_btn'):
+            self.delete_confirm_btn = QPushButton("Delete account", self)
+            self.delete_confirm_btn.setStyleSheet('background: #c0392b; color: white; border-radius: 6px;')
+            self.delete_confirm_btn.clicked.connect(self.delete_account)
+
+        if not hasattr(self, 'delete_cancel_btn'):
+            self.delete_cancel_btn = QPushButton("Don't delete", self)
+            self.delete_cancel_btn.setStyleSheet('background: rgba(255,255,255,20); color: white; border-radius: 6px;')
+            self.delete_cancel_btn.clicked.connect(self.hide_delete_button)
+
+        self.delete_confirm_btn.setGeometry(start_x, by, btn_w, btn_h)
+        self.delete_cancel_btn.setGeometry(start_x + btn_w + spacing, by, btn_w, btn_h)
+        self.delete_confirm_btn.show()
+        self.delete_cancel_btn.show()
+
+    def delete_account(self):
+        # Remove this account from data and UI
+        # Find the app instance (walk up parents if needed)
+        app = None
+        parent = self.parent()
+        while parent is not None:
+            if hasattr(parent, 'app'):
+                app = parent.app
+                break
+            parent = parent.parent() if hasattr(parent, 'parent') else None
+        if app is None and hasattr(self, 'app'):
+            app = self.app
+        # Remove from users and save
+        if app and hasattr(app, 'users'):
+            app.users = [u for u in app.users if not (u['riot_id'] == self.riot_id and u['username'] == self.username)]
+            save_data(app.users)
+            print('Current users:', app.users)
+        # Remove widget from layout
+        self.setParent(None)
+        self.deleteLater()
+
+    def hide_delete_button(self):
+        if hasattr(self, 'delete_button') and self.delete_button:
+            try:
+                self.delete_button.hide()
+            except Exception:
+                pass
+        if hasattr(self, 'delete_confirm_btn') and self.delete_confirm_btn:
+            self.delete_confirm_btn.hide()
+        if hasattr(self, 'delete_cancel_btn') and self.delete_cancel_btn:
+            self.delete_cancel_btn.hide()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.RightButton:
+            # Toggle delete button visibility on right-click
+            if hasattr(self, 'delete_button') and self.delete_button and self.delete_button.isVisible():
+                self.delete_button.hide()
+            else:
+                self.show_delete_button()
+            return
+        # Left / other clicks: hide delete button and emit signal
+        self.hide_delete_button()
+        self.clicked_account.emit(self.username, self.password)  # Emit signal with data
     clicked_account = pyqtSignal(str, str)  # Define signal with username and password
 
     def __init__(self, user_data, width, height, radius, image_path='images/default.png', parent=None):
         super().__init__(parent)
-        
+
         self.setFixedSize(width, height)
 
         self.account_name_w_tagline = f"{user_data['riot_id']} # {user_data['tagline']}"
@@ -37,6 +103,12 @@ class AccountButton(QWidget):
 
         self.winrate = None
         self.rank = None
+        self.iconID = None
+        self.base_urls = {
+            "icon": 'http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons/'
+        }
+
+        self.border_label = None
 
         load_dotenv('getenv.env')
         api_key = os.getenv('api_key')
@@ -45,19 +117,19 @@ class AccountButton(QWidget):
             raise ValueError("API key not found. Check your .env file.")
 
         ranked_info = get_data(self.riot_id, self.tagline, self.region, api_key)
-
-        if ranked_info == (None, None) or ranked_info == None:
+        if ranked_info == (None, None, None) or ranked_info == (None, None) or ranked_info == None:
             ranked_info = 'Unranked'
             image_fade_path = RANKS_PATH_FADE[ranked_info]
             image_border_path = None
             print(f'{self.account_name} | {ranked_info}')
 
-        
         else:
             print(f'{self.account_name} | {ranked_info}')
-            (rank, self.rank), self.winrate = ranked_info
-
+            print(ranked_info)
+            (rank, self.rank), self.winrate, _ = ranked_info
+            self.iconID = ranked_info[-1]
             rank = rank.capitalize()
+
             if rank in RANKS:
                 image_fade_path = RANKS_PATH_FADE[rank]
                 image_border_path = RANKS_PATH_BORDER[rank]
@@ -75,14 +147,46 @@ class AccountButton(QWidget):
         self.fade_label.setGeometry(0, 0, width, height)
 
         # Border // if unranked crashes
+
         if (self.border_pixmap != None):
+            border_width = self.border_pixmap.width()
+            border_height = self.border_pixmap.height()
             self.border_label = QLabel(self)
             self.border_label.setPixmap(self.border_pixmap)
             self.border_label.setScaledContents(True)
-            border_width = self.border_pixmap.width()
-            border_height = self.border_pixmap.height()
             self.border_label.setStyleSheet("background: transparent; border: none;")
             self.border_label.setGeometry(0, -button_height//2, border_width, border_height)
+
+            # --------- ICON LABEL --------- #
+            self.icon_label = QLabel(self)
+            self.icon_label.setGeometry(border_width // 3, button_height // 3, 50, 50)
+            self.icon_label.setStyleSheet('background: transparent;')
+            self.icon_label.hide()
+
+            # If iconID is available, load and show the image as a circular icon
+            if self.iconID:
+                try:
+                    url = f"{self.base_urls['icon']}{self.iconID}.jpg"
+                    response = requests.get(url)
+                    if response.status_code == 200:
+                        pixmap = create_circular_icon(response.content)
+                        self.icon_label.setPixmap(pixmap)
+                        self.icon_label.show()
+                except Exception as e:
+                    print(f"Failed to load iconID image: {e}")
+
+        # square icon image, if border // rank missing
+        elif self.iconID:
+            try:
+                url = f"{self.base_urls['icon']}{self.iconID}.jpg"
+                response = requests.get(url)
+                if response.status_code == 200:
+                    image = QImage.fromData(response.content)
+                    pixmap = QPixmap.fromImage(image)
+                    self.icon_label.setPixmap(pixmap)
+                    self.icon_label.show()
+            except Exception as e:
+                print(f"Failed to load iconID image: {e}")
 
         # --------- TEXT --------- #
 
@@ -151,6 +255,8 @@ class AccountButton(QWidget):
         self.button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))  # Set cursor to hand
         self.button.clicked.connect(self.on_click)
 
+        if (self.border_label):
+            self.border_label.raise_()
 
     def enterEvent(self, event):
         """ Change account label color to white on hover """
@@ -436,7 +542,7 @@ class MainApp(QWidget):
         layout.addWidget(scroll_area)
 
         self.setLayout(layout)
-        
+
     def create_account(self, user, button_width, button_height, button_radius):
         account_button = AccountButton(user, button_width, button_height, button_radius)
         account_button.clicked_account.connect(self.on_signal_received)
