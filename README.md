@@ -16,4 +16,4 @@ dependencies installed with pip:
 
 
 how to build:
-    pyinstaller --noconsole --onefile --icon=images/icon.ico --add-data="images;images" --name RiotLogger Beta_App.py
+    pyinstaller --noconsole --onefile --icon=images/icon.ico --add-data="images;images" --name RiotLogger Beta_Main.py

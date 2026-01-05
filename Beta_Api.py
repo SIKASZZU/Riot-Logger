@@ -89,5 +89,5 @@ if __name__ == "__main__":
         raise ValueError("API key not found.")
 
     print()
-    data = get_data('TwTv RiverSanzu', '0000', 'EUN1', api_key)
+    data = get_data('Lando Verstappen', '1814', 'EUW1', api_key)
     print(data)
