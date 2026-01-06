@@ -9,6 +9,7 @@ from PyQt6.QtGui import QPixmap, QImage
 
 FADE_SATURAION = 1.5
 BORDER_SATURAION = 1
+BORDER_SCALE = 0.75
 
 # Button sizes
 button_width = 500
@@ -152,7 +153,7 @@ def create_border_image(image_path):
 
     border_width = img.width
     border_height = img.height
-    img = img.resize((round(border_width * 0.5), round(border_height * 0.5)), Image.Resampling.BICUBIC)
+    img = img.resize((round(border_width * BORDER_SCALE), round(border_height * BORDER_SCALE)), Image.Resampling.BICUBIC)
 
     color_enchancer = ImageEnhance.Color(img)
     img = color_enchancer.enhance(BORDER_SATURAION)
