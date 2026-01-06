@@ -136,9 +136,11 @@ def create_fade_image(image_path, size, radius):
     # Apply rounded mask to image
     img.putalpha(mask)
 
-    # Convert to QPixmap
-    img.save(get_resource_path(RANKS_PATH_FADE['Unranked']))  # Temporary save for conversion
-    return QPixmap(get_resource_path(RANKS_PATH_FADE['Unranked']))
+    # Convert to QPixmap in-memory (avoid writing temporary files)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    qimg = QImage.fromData(buf.getvalue())
+    return QPixmap.fromImage(qimg)
 
 def create_border_image(image_path):
     """Creates a rounded image with PIL and converts it to QPixmap."""
@@ -155,9 +157,11 @@ def create_border_image(image_path):
     color_enchancer = ImageEnhance.Color(img)
     img = color_enchancer.enhance(BORDER_SATURAION)
 
-    # Convert to QPixmap
-    img.save(get_resource_path(RANKS_PATH_BORDER['Unranked']))  # Temporary save for conversion
-    return QPixmap(get_resource_path(RANKS_PATH_BORDER['Unranked']))
+    # Convert to QPixmap in-memory (avoid writing temporary files)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    qimg = QImage.fromData(buf.getvalue())
+    return QPixmap.fromImage(qimg)
 
 def create_circular_icon(image_path):
     """

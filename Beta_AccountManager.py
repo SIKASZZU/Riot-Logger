@@ -2,30 +2,25 @@ import os
 import requests
 import webbrowser
 
-from helper import *
 from Beta_Api import get_data
-from dotenv import load_dotenv
+from helper import *
 
 from PyQt6.QtGui import QPixmap, QFont, QCursor, QImage, QDrag
-from PyQt6.QtCore import Qt, pyqtSignal, QMimeData, QPoint
-from PyQt6.QtWidgets import QWidget, QLabel, QPushButton
+from PyQt6.QtCore import Qt, pyqtSignal, QMimeData
+from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QApplication
 
 class AccountManager(QWidget):
+    """Widget representing a single account entry."""
+
+    clicked_account = pyqtSignal(str, str)
+
     def delete_account(self):
-        app = None
-        parent = self.parent()
-        while parent is not None:
-            if hasattr(parent, 'app'):
-                app = parent.app
-                break
-            parent = parent.parent() if hasattr(parent, 'parent') else None
-        if app is None and hasattr(self, 'app'):
-            app = self.app
+        if hasattr(self, 'app') and getattr(self.app, 'users', None) is not None:
+            self.app.users = [u for u in self.app.users if not (u.get('riot_id') == self.riot_id and u.get('username') == self.username)]
+            save_data(self.app.users)
+        else:
+            print('Warning: could not find app.users to update')
 
-        app.users = [u for u in app.users if not (u.get('riot_id') == self.riot_id and u.get('username') == self.username)]
-        save_data(app.users)
-
-        # Remove widget from layout
         self.setParent(None)
         self.deleteLater()
 
@@ -39,16 +34,19 @@ class AccountManager(QWidget):
             self.delete_confirm_btn.hide()
         if hasattr(self, 'delete_cancel_btn') and self.delete_cancel_btn:
             self.delete_cancel_btn.hide()
+        # hide darker overlay when hiding delete buttons
+        if hasattr(self, '_delete_overlay') and self._delete_overlay:
+            try:
+                self._delete_overlay.hide()
+            except Exception:
+                pass
 
     def show_delete_button(self):
-        # Show two action buttons (Delete / Don't delete) centered under the account label.
-        # Create buttons lazily.
         label_geom = self.account_label.geometry()
-        btn_w = 110
-        btn_h = 24
+        btn_w, btn_h = 110, 24
         spacing = 10
         total_w = btn_w * 2 + spacing
-        start_x = label_geom.x() + max(0, (label_geom.width() - total_w))
+        start_x = label_geom.x() + max(0, (label_geom.width() - total_w) // 2)
         by = label_geom.y() + label_geom.height() // 2 - btn_h // 2
 
         if not hasattr(self, 'delete_confirm_btn'):
@@ -63,8 +61,23 @@ class AccountManager(QWidget):
 
         self.delete_confirm_btn.setGeometry(start_x, by, btn_w, btn_h)
         self.delete_cancel_btn.setGeometry(start_x + btn_w + spacing, by, btn_w, btn_h)
+        # create or show a semi-transparent overlay behind the delete buttons
+        if not hasattr(self, '_delete_overlay') or self._delete_overlay is None:
+            from PyQt6.QtWidgets import QLabel
+            self._delete_overlay = QLabel(self)
+            # darker overlay; alpha ~80
+            self._delete_overlay.setStyleSheet(f'background: rgba(0,0,0,80); border-radius: {getattr(self, "radius", 0)}px;')
+            self._delete_overlay.setGeometry(0, 0, self.width(), self.height())
+        else:
+            self._delete_overlay.setGeometry(0, 0, self.width(), self.height())
+
+        self._delete_overlay.show()
         self.delete_confirm_btn.show()
         self.delete_cancel_btn.show()
+
+        self._delete_overlay.raise_()
+        self.delete_confirm_btn.raise_()
+        self.delete_cancel_btn.raise_()
 
     def open_opgg(self):
         try:
@@ -76,21 +89,18 @@ class AccountManager(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.RightButton:
-            # Toggle delete button visibility on right-click
             if hasattr(self, 'delete_button') and self.delete_button and self.delete_button.isVisible():
                 self.delete_button.hide()
             else:
                 self.show_delete_button()
             return
 
-        # Left/other clicks: prepare for possible drag; don't emit immediately
         if event.button() == Qt.MouseButton.LeftButton:
             self._drag_start_pos = event.pos()
             self._dragging = False
             self.hide_delete_button()
 
         return
-    clicked_account = pyqtSignal(str, str)  # Define signal with username and password
 
     def enterEvent(self, event):
         """ Change account label color to white on hover """
@@ -105,7 +115,7 @@ class AccountManager(QWidget):
         self.rank_label.setStyleSheet("color: gray; background: transparent;")
 
     def on_click(self):
-        self.clicked_account.emit(self.username, self.password)  # Emit signal with data
+        self.clicked_account.emit(self.username, self.password)
 
     def mouseMoveEvent(self, event):
         # Start a drag if the left button was pressed and moved sufficiently
@@ -114,7 +124,6 @@ class AccountManager(QWidget):
         if not (event.buttons() & Qt.MouseButton.LeftButton):
             return
         dist = (event.pos() - self._drag_start_pos).manhattanLength()
-        from PyQt6.QtWidgets import QApplication
         if dist < QApplication.startDragDistance():
             return
 
@@ -149,7 +158,11 @@ class AccountManager(QWidget):
     def __init__(self, user_data, width, height, radius, image_path='images/default.png', parent=None):
         super().__init__(parent)
 
+        # Capture `app` reference from parent (MainApp) when available
+        self.app = parent if (parent and hasattr(parent, 'users')) else None
+
         self.setFixedSize(width, height)
+        self.radius = radius
         self.account_name_w_tagline = f"{user_data['riot_id']}#{user_data['tagline']}"
         self.account_name = f"{user_data['riot_id']}"
         self.username = user_data['username']
@@ -186,28 +199,26 @@ class AccountManager(QWidget):
             "opgg": f'https://op.gg/lol/summoners/{regionQuery[self.region]}/'
         }
 
-        load_dotenv('getenv.env')
-        api_key = os.getenv('api_key')
-
         hotStreak_image_path = 'images/hotStreak.png'
 
+        # Get API key from parent app; MainApp should load it once.
+        api_key = None
+        if self.app and getattr(self.app, 'api_key', None):
+            api_key = self.app.api_key
         if not api_key:
-            raise ValueError("API key not found. Check your .env file.")
+            raise ValueError('API key not found. MainApp must set `self.api_key`.')
 
         ranked_info = get_data(self.riot_id, self.tagline, self.region, api_key)
-        if ranked_info == None or ranked_info['tier'] == None:
+        if ranked_info is None or ranked_info.get('tier') is None:
             ranked_info = 'Unranked'
             image_fade_path = RANKS_PATH_FADE[ranked_info]
             image_border_path = None
-
         else:
-
-            self.winrate = f'{ranked_info['winrate']}%  {ranked_info['wins']}W {ranked_info['losses']}L'
-            self.rank = f'{ranked_info['tier']} {ranked_info['rank']} {ranked_info['lp']}LP'
-            self.iconID = ranked_info['iconID']
-            self.hotStreak = ranked_info['hotStreak']
-            tier = ranked_info['tier']
-            tier = tier.capitalize()
+            self.winrate = f"{ranked_info['winrate']}%  {ranked_info['wins']}W {ranked_info['losses']}L"
+            self.rank = f"{ranked_info['tier']} {ranked_info['rank']} {ranked_info['lp']}LP"
+            self.iconID = ranked_info.get('iconID')
+            self.hotStreak = ranked_info.get('hotStreak')
+            tier = ranked_info['tier'].capitalize()
 
             if tier in RANKS:
                 image_fade_path = RANKS_PATH_FADE[tier]
@@ -220,15 +231,13 @@ class AccountManager(QWidget):
 
         # --------- IMAGES --------- #
 
-        # Background Label. Always present
+        # Background label
         self.fade_label = QLabel(self)
         self.fade_label.setPixmap(self.fade_pixmap)
         self.fade_label.setScaledContents(True)
         self.fade_label.setGeometry(0, 0, width, height)
 
-        # Border // if unranked crashes
-
-        if (self.border_pixmap != None):
+        if self.border_pixmap is not None:
             border_width = self.border_pixmap.width()
             border_height = self.border_pixmap.height()
             self.border_label = QLabel(self)
@@ -237,13 +246,12 @@ class AccountManager(QWidget):
             self.border_label.setStyleSheet("background: transparent; border: none;")
             self.border_label.setGeometry(0, -button_height//2, border_width, border_height)
 
-            # --------- ICON LABEL --------- #
+            # Icon label
             self.icon_label = QLabel(self)
             self.icon_label.setGeometry(border_width // 3, button_height // 3, 50, 50)
             self.icon_label.setStyleSheet('background: transparent;')
             self.icon_label.hide()
 
-            # If iconID is available, load and show the image as a circular icon
             if self.iconID:
                 try:
                     url = f"{self.base_urls['icon']}{self.iconID}.jpg"
@@ -255,7 +263,6 @@ class AccountManager(QWidget):
                 except Exception as e:
                     print(f"Failed to load iconID image: {e}")
 
-        # square icon image, if border // rank missing
         elif self.iconID:
             try:
                 url = f"{self.base_urls['icon']}{self.iconID}.jpg"
@@ -268,9 +275,9 @@ class AccountManager(QWidget):
             except Exception as e:
                 print(f"Failed to load iconID image: {e}")
 
-        # --------- TEXT --------- #
+        # Text labels
 
-        # Account Name
+        # Account name
         self.account_label = QLabel(self.account_name, self)
         self.account_label.setFont(QFont("Arial", 16))
         self.account_label.setStyleSheet("color: gray; background: transparent;")
@@ -283,7 +290,7 @@ class AccountManager(QWidget):
             button_height - al_start_y
         )
 
-        # Winrate (Centered)
+        # Winrate
         self.winrate_label = QLabel(self.winrate, self)
         self.winrate_label.setFont(QFont("Arial", 9))
         self.winrate_label.setStyleSheet("color: gray; background: transparent;")
@@ -297,7 +304,7 @@ class AccountManager(QWidget):
             winrate_start_y
         )
 
-        # Rank (Centered)
+        # Rank
         self.rank_label = QLabel(self.rank, self)
         self.rank_label.setFont(QFont("Arial", 9))
         self.rank_label.setStyleSheet("color: gray; background: transparent;")
@@ -311,7 +318,7 @@ class AccountManager(QWidget):
             winrate_start_y
         )
 
-        # Rank (Centered)
+        # Hotstreak
         if (self.hotStreak):
             self.hotStreak_pixmap = create_hot_streak(hotStreak_image_path)
             self.hotStreak_label = QLabel(self)
@@ -327,30 +334,10 @@ class AccountManager(QWidget):
         self.opgg_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.opgg_btn.clicked.connect(self.open_opgg)
 
-        # Invisible Clickable Button
-        self.button = QPushButton("", self)
+        # Invisible overlay button (transparent to mouse events so widget receives them)
+        self.button = QPushButton('', self)
         self.button.setGeometry(0, 0, width, height)
-        self.button.setStyleSheet("background: transparent; border: none;")
-
-        self.button.setStyleSheet(
-            f"""
-            QPushButton {{
-                background: transparent;
-                border-radius: {radius}px;
-                border: none;
-            }}
-            QPushButton:hover {{
-                background: rgba(150, 150, 150, 20);
-            }}
-            QPushButton:pressed {{
-                background: rgba(150, 150, 150, 30);
-            }}
-            """
-        )
-
-        self.button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))  # Set cursor to hand
-        # Let the parent widget receive mouse events so dragging works;
-        # we handle clicks in mouseReleaseEvent instead.
+        self.button.setStyleSheet(f'background: transparent; border-radius: {radius}px; border: none;')
         self.button.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         # Ensure op.gg button is above the invisible overlay and doesn't steal focus
         if hasattr(self, 'opgg_btn'):
