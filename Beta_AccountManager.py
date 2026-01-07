@@ -1,6 +1,7 @@
 import os
 import requests
 import webbrowser
+import time
 
 from Beta_Api import get_data
 from helper import *
@@ -170,6 +171,17 @@ class AccountManager(QWidget):
         self.riot_id = user_data['riot_id']
         self.tagline = user_data['tagline']
         self.region = user_data['region']
+        
+        try:
+            self.lastQuery = user_data['lastQuery']
+        except KeyError:
+            self.lastQuery = int( time.time() )
+            print(f'{self.account_name} has been assigned new query date. {self.lastQuery}')
+        try:
+            self.lastKnownRankedInfo = user_data['lastKnownRankedInfo']
+        except KeyError:
+            self.lastKnownRankedInfo = {}
+            print(f'{self.account_name} has assigned empty lastKnownRankedInfo data. ')
 
         self.hotStreak = None
         self.winrate = None
@@ -208,22 +220,66 @@ class AccountManager(QWidget):
         if not api_key:
             raise ValueError('API key not found. MainApp must set `self.api_key`.')
 
-        ranked_info = get_data(self.riot_id, self.tagline, self.region, api_key)
-        if ranked_info is None or ranked_info.get('tier') is None:
+        def decouple_ranked_info(info: dict):
+            self.winrate = f"{info['winrate']}%  {info['wins']}W {info['losses']}L"
+            self.rank = f"{info['tier']} {info['rank']} {info['lp']}LP"
+            self.iconID = info.get('iconID')
+            self.hotStreak = info.get('hotStreak')
+            tier = info['tier'].capitalize()
+
+        ranked_info = None
+        # hack, delete me
+        if (type(self.lastQuery) == list): self.lastQuery = int( time.time() )
+        timeAfterLastQuery =  int( time.time() ) - self.lastQuery
+        if (timeAfterLastQuery >= 260):  # 4 min and 20 seconds blaze it
+            print(self.account_name, ' is doing a query. Time passed: ', timeAfterLastQuery)
+            ranked_info = get_data(self.riot_id, self.tagline, self.region, api_key)
+        # if ranked_info is None or ranked_info.get('tier') is None:
+        if ranked_info:
+            self.lastQuery = int( time.time() )
+            self.lastKnownRankedInfo = ranked_info
+            decouple_ranked_info(ranked_info)
+            tier = ranked_info['tier'].capitalize()
+            image_fade_path = RANKS_PATH_FADE[tier]
+            image_border_path = RANKS_PATH_BORDER[tier]
+
+        elif self.lastKnownRankedInfo:
+            decouple_ranked_info(self.lastKnownRankedInfo)
+            saved_tier = self.lastKnownRankedInfo['tier'].capitalize()
+            image_fade_path = RANKS_PATH_FADE[saved_tier]
+            image_border_path = RANKS_PATH_BORDER[saved_tier]
+
+        else:
             ranked_info = 'Unranked'
             image_fade_path = RANKS_PATH_FADE[ranked_info]
             image_border_path = None
-        else:
-            self.winrate = f"{ranked_info['winrate']}%  {ranked_info['wins']}W {ranked_info['losses']}L"
-            self.rank = f"{ranked_info['tier']} {ranked_info['rank']} {ranked_info['lp']}LP"
-            self.iconID = ranked_info.get('iconID')
-            self.hotStreak = ranked_info.get('hotStreak')
-            tier = ranked_info['tier'].capitalize()
 
-            if tier in RANKS:
-                image_fade_path = RANKS_PATH_FADE[tier]
-                image_border_path = RANKS_PATH_BORDER[tier]
-        print(f'{self.account_name} | {ranked_info}\n')
+        print(f'{self.account_name} | \
+              \n lastQuery: {timeAfterLastQuery} \
+              \n rI {ranked_info} \n lKRI {self.lastKnownRankedInfo}\n\n')
+
+        updated_user = {
+            'username': self.username,
+            'password': self.password,
+            'riot_id': self.riot_id,
+            'tagline': self.tagline,
+            'region': self.region,
+            'lastQuery': self.lastQuery,
+            'lastKnownRankedInfo': self.lastKnownRankedInfo
+        }
+
+        found = False
+        for i, u in enumerate(self.app.users):
+            if u.get('riot_id') == self.riot_id and u.get('username') == self.username:
+                self.app.users[i].update(updated_user)
+                found = True
+                print(self.riot_id, ' has bee updated. ')
+                break
+
+        if not found:
+            print('Error finding user from self.app.users. Did not update user data!')
+        else:
+            save_data(self.app.users)
 
         # Load rounded image
         self.fade_pixmap = create_fade_image(image_fade_path, (width, height), radius)

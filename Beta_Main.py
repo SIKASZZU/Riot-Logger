@@ -59,12 +59,18 @@ class MainApp(QWidget):
         for user in self.users:
             self.create_account(user, button_width, button_height, button_radius)
 
+        # max_accounts_visible = 6
+        # create_account_count = max_accounts_visible - len(self.users)
+        # for i in range(create_account_count):
+        #    create_account_widget = CreateAccount(self, button_width, button_height, button_radius, scroll_area)
+        #    self.scroll_layout.addWidget(create_account_widget)
+
+        # if create_account_count <= 0:  # ehk visible acce on 6 voi rohkem ning peab lisama eraldi new acc buttoni 
         create_account_widget = CreateAccount(self, button_width, button_height, button_radius, scroll_area)
         self.scroll_layout.addWidget(create_account_widget)
 
-        # Add the scroll area to the main layout
+        self.scroll_area = scroll_area
         layout.addWidget(scroll_area)
-
         self.setLayout(layout)
 
     def create_account(self, user, button_width, button_height, button_radius):

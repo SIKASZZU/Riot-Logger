@@ -172,6 +172,26 @@ class CreateAccount(QWidget):
         self.parent().layout().update()  # Force the layout to refresh
         self.parent().adjustSize()  # Adjust the parent window size to fit the new layout
 
+    def check_data_dupes(self, new_user: dict):
+        """Return True if a user with same riot_id+tagline+region already exists.
+
+        Comparison is case-insensitive and ignores surrounding whitespace.
+        """
+        if not getattr(self, 'app', None) or not getattr(self.app, 'users', None):
+            return False
+
+        def norm(s):
+            return (s or "").strip().lower()
+
+        target_id = norm(new_user.get('riot_id'))
+        target_tag = norm(new_user.get('tagline'))
+        target_region = norm(new_user.get('region'))
+
+        for u in self.app.users:
+            if norm(u.get('riot_id')) == target_id and norm(u.get('tagline')) == target_tag and norm(u.get('region')) == target_region:
+                return True
+        return False
+
     def confirm(self):
         """ Confirms and adds the new account button """
         riot_id = self.riot_id_entry.text()
@@ -179,41 +199,52 @@ class CreateAccount(QWidget):
         username = self.username_entry.text()
         password = self.password_entry.text()
         region = self.combo_box.currentText()
-        user = {"riot_id": riot_id, "tagline": tagline, "region": region, "username": username, "password": password}
-        
+        new_user = {
+            "riot_id": riot_id,
+            "tagline": tagline,
+            "region": region,
+            "username": username,
+            "password": password,
+            "lastKnownRankedInfo": {}
+            }
+
+        # Prevent duplicates (same Riot ID + Tagline + Region)
+        if self.check_data_dupes(new_user):
+            print("Duplicate account already exists!")
+            return
+
         if not riot_id or not username or not password or region == "Region":
             print("Please fill all fields!")
             return
 
         # Create a new AccountManager with the provided data
-        new_account = self.app.create_account(user, self.arg_width, self.arg_height, self.radius)
-        
-        self.app.users.append(user)
+        new_account = self.app.create_account(new_user, self.arg_width, self.arg_height, self.radius)
 
-        save_data(self.app.users)  # save accounts to json
-        
-        # Get the layout of the parent widget
-        parent_layout = self.parent().layout()
+        self.app.users.append(new_user)
+        save_data(self.app.users)
 
-        # Find the last "Add Account" button
-        add_account_button_index = None
+        parent_layout = self.parent().layout() if self.parent() is not None else self.app.scroll_layout
 
-        # Find the last widget (the "Add Account" button) and get its index
-        add_account_button_index = -1
-        for i in range(parent_layout.count()):
-            widget = parent_layout.itemAt(i).widget()
-            if widget and isinstance(widget, CreateAccount):
-                add_account_button_index = i
+        create_idx = None
+        for i in range(parent_layout.count() - 1, -1, -1):
+            w = parent_layout.itemAt(i).widget()
+            if isinstance(w, CreateAccount):
+                create_idx = i
                 break
 
-        if add_account_button_index != -1:
-            # Insert the new account button before the "Add Account" button
-            parent_layout.insertWidget(add_account_button_index, new_account)
+        if create_idx is not None:
+            # Insert the new account at the CreateAccount position, then remove the old CreateAccount
+            parent_layout.insertWidget(create_idx, new_account)
+            old = parent_layout.itemAt(create_idx + 1).widget()
+            if isinstance(old, CreateAccount):
+                old.deleteLater()
+        else:
+            # No existing Add button found — just append the new account
+            parent_layout.addWidget(new_account)
 
-        # Delete Add account button if we have less than 6 users in the list
-        if len(self.app.users) < 6:
-            parent_layout.itemAt(add_account_button_index + 1).widget().deleteLater()
+        # Ensure exactly one Add button at the bottom
+        create_account_widget = CreateAccount(self.app, button_width, button_height, button_radius, self.app.scroll_area)
+        self.app.scroll_layout.addWidget(create_account_widget)
 
-        # Reset the form back to the initial state after confirming
         self.reset_form()
 
