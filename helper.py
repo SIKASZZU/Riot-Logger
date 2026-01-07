@@ -2,6 +2,8 @@ import os
 import json
 import sys
 import io
+from dotenv import load_dotenv
+from argon2 import PasswordHasher, exceptions
 
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageEnhance
@@ -87,6 +89,11 @@ def get_data_path():
 
 FILE_PATH = get_data_path()
 
+# Load optional pepper for password hashing from getenv.env
+load_dotenv('getenv.env')
+_PEPPER = os.getenv('hash') or ''
+_PH = PasswordHasher()
+
 def load_data():
     try:
         with open(FILE_PATH, "r") as f:
@@ -100,6 +107,21 @@ def load_data():
 def save_data(users):
     with open(FILE_PATH, "w") as f:
         json.dump(users, f)
+
+
+def hash_password(password: str) -> str:
+    """Return Argon2 hash of the password plus optional pepper."""
+    return _PH.hash((password or "") + _PEPPER)
+
+
+def verify_password(stored_hash: str, password: str) -> bool:
+    """Verify a password against an Argon2 `stored_hash`. Returns bool."""
+    try:
+        return _PH.verify(stored_hash, (password or "") + _PEPPER)
+    except exceptions.VerifyMismatchError:
+        return False
+    except Exception:
+        return False
 
 def get_resource_path(relative_path):
     """Get absolute path to resource, works for development and PyInstaller onefile mode."""

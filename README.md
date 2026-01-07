@@ -13,7 +13,7 @@ dependencies installed with pip:
     pygetwindow
     PyQt6
     dotenv
-
+    argon2-cffi
 
 how to build:
     pyinstaller --noconsole --onefile --icon=images/icon.ico --add-data="images;images" --name RiotLogger Beta_Main.py

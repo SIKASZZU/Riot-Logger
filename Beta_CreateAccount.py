@@ -205,6 +205,8 @@ class CreateAccount(QWidget):
             "region": region,
             "username": username,
             "password": password,
+            # Argon2 hash stored for security; plaintext kept in-memory for runtime
+            "password_hash": hash_password(password),
             "lastKnownRankedInfo": {}
             }
 
