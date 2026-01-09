@@ -32,6 +32,26 @@ RANKS = [
     "Challenger",
 ]
 
+lpForTier = {
+    "Iron": 0,
+    "Bronze": 400,
+    "Silver": 800,
+    "Gold": 1200,
+    "Platinum": 1600,
+    "Emerald": 2000,
+    "Diamond": 2400,
+    "Master": 2800,
+    "Grandmaster": 2800,
+    "Challenger": 2800
+}
+
+lpForRank = {
+    'I': 300,
+    'II': 200,
+    'III': 100,
+    'IV': 0
+}
+
 RANKS_PATH_FADE = {
     "Unranked":     'images/fade/temp_rounded.png',
     "Iron":         'images/fade/iron.png',

@@ -13,6 +13,13 @@ class RiotAPI:
         }
         self.headers = {"X-Riot-Token": self.api_key}
 
+    @staticmethod
+    def _handle_response(response, key):
+        if response.status_code == 200:
+            return response.json().get(key)
+        print(f"Error {response.status_code}: {response.json()}")
+        return None
+
     # puuid by submitted gameName and tagLine
     def get_puuid(self, game_name: str, tagline: str):
         url = f"{self.base_urls['account']}/riot/account/v1/accounts/by-riot-id/{game_name}/{tagline}"
@@ -23,40 +30,40 @@ class RiotAPI:
     def get_ranked_data(self, puuid: str):
         url = f"{self.base_urls['ranked']}{puuid}"
         response = requests.get(url, headers=self.headers)
-        if response.status_code == 200:
-            ranked_data = response.json()
-            for entry in ranked_data:
-                if entry['queueType'] == 'RANKED_SOLO_5x5':
-                    tier, rank, lp = entry['tier'], entry['rank'], entry['leaguePoints']
-                    wins, losses = entry['wins'], entry['losses']
-                    hotStreak = entry['hotStreak']
-                    winrate = round((wins / (wins + losses)) * 100, 1)
-                    return {
-                        'tier': tier,
-                        'rank': rank,
-                        'lp': lp,
-                        'wins': wins,
-                        'losses': losses,
-                        'winrate': winrate,
-                        'hotStreak': hotStreak,
-                        }
-            return None
-        else:
+
+        if response.status_code != 200:
             print(f"Error {response.status_code}: {response.json()}")
             return None
+
+        for entry in response.json():
+            if entry['queueType'] == 'RANKED_SOLO_5x5':
+                tier = entry['tier'].capitalize()
+                data = {
+                    'tier': tier,
+                    'rank': entry['rank'],  # will be 'I' for Master+
+                    'lp': entry['leaguePoints'],
+                    'wins': entry['wins'],
+                    'losses': entry['losses'],
+                    'winrate': round(
+                        entry['wins'] / (entry['wins'] + entry['losses']) * 100
+                    ),
+                    'hotStreak': entry['hotStreak']
+                }
+
+                # Apex tiers need ladder position
+                if tier in ("Master", "Grandmaster", "Challenger"):
+                    position = self.get_apex_position(puuid, tier)
+                    data["ladderRank"] = position
+
+                return data
+
+        return None
 
     def get_icon_id(self, puuid):
         url = f"{self.base_urls['summoner']}{puuid}" 
         response = requests.get(url, headers=self.headers) 
         # iconID = data.get('profileIconId')
         return self._handle_response(response, 'profileIconId')
-
-    @staticmethod
-    def _handle_response(response, key):
-        if response.status_code == 200:
-            return response.json().get(key)
-        print(f"Error {response.status_code}: {response.json()}")
-        return None
 
     def get_player_data(self, game_name: str, tagline: str):
 
@@ -67,13 +74,40 @@ class RiotAPI:
 
         iconID = self.get_icon_id(puuid)
         ranked_info = self.get_ranked_data(puuid)
-
-        ranked_info.update({
-            'iconID': iconID
-        })
+        if ranked_info:
+            ranked_info.update({
+                'iconID': iconID
+            })
 
         return ranked_info
 
+    def get_apex_league(self, tier: str):
+        tier = tier.lower()
+        url = f"https://{self.region}.api.riotgames.com/lol/league/v4/{tier}leagues/by-queue/RANKED_SOLO_5x5"
+        response = requests.get(url, headers=self.headers)
+
+        if response.status_code == 200:
+            return response.json().get("entries", [])
+        else:
+            print(f"Error {response.status_code}: {response.json()}")
+            return None
+
+    def get_apex_position(self, puuid: str, tier: str):
+        entries = self.get_apex_league(tier)
+        if not entries:
+            return None
+
+        # Sort by LP (desc), wins (desc)
+        entries.sort(
+            key=lambda x: (x["leaguePoints"], x["wins"]),
+            reverse=True
+        )
+
+        for index, player in enumerate(entries, start=1):
+            if player["puuid"] == puuid:
+                return index
+
+        return None
 
 def get_data(game_name, tagline, region, api_key):
     riot_api = RiotAPI(api_key, region)

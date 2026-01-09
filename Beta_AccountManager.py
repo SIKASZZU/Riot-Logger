@@ -111,9 +111,9 @@ class AccountManager(QWidget):
 
     def leaveEvent(self, event):
         """ Change account label color back to gray when not hovered """
-        self.account_label.setStyleSheet("color: gray; background: transparent;")
-        self.winrate_label.setStyleSheet("color: gray; background: transparent;")
-        self.rank_label.setStyleSheet("color: gray; background: transparent;")
+        self.account_label.setStyleSheet("background: transparent;")
+        self.winrate_label.setStyleSheet("background: transparent;")
+        self.rank_label.setStyleSheet("background: transparent;")
 
     def on_click(self):
         self.clicked_account.emit(self.username, self.password)
@@ -159,6 +159,8 @@ class AccountManager(QWidget):
     def __init__(self, user_data, width, height, radius, image_path='images/default.png', parent=None):
         super().__init__(parent)
 
+        print(f'Loaded user: {user_data['riot_id']}')
+
         # Capture `app` reference from parent (MainApp) when available
         self.app = parent if (parent and hasattr(parent, 'users')) else None
 
@@ -171,7 +173,9 @@ class AccountManager(QWidget):
         self.riot_id = user_data['riot_id']
         self.tagline = user_data['tagline']
         self.region = user_data['region']
-        
+        # self.lastQuery = user_data['lastQuery']
+        # self.lastKnownRankedInfo = user_data['lastKnownRankedInfo']
+
         try:
             self.lastQuery = user_data['lastQuery']
         except KeyError:
@@ -187,7 +191,6 @@ class AccountManager(QWidget):
         self.winrate = None
         self.rank = None
         self.iconID = None
-        # regionStripped = self.region.rstrip("0123456789")
         regionQuery = {
             'BR1': 'BR',
             'EUN1': 'EUNE',
@@ -213,6 +216,8 @@ class AccountManager(QWidget):
 
         hotStreak_image_path = 'images/hotStreak.png'
 
+        lpDifferenceBetweenQueries = 0
+
         # Get API key from parent app; MainApp should load it once.
         api_key = None
         if self.app and getattr(self.app, 'api_key', None):
@@ -221,7 +226,8 @@ class AccountManager(QWidget):
             raise ValueError('API key not found. MainApp must set `self.api_key`.')
 
         def decouple_ranked_info(info: dict):
-            self.winrate = f"{info['winrate']}%  {info['wins']}W {info['losses']}L"
+            self.winrate = f"{info['winrate']}%\n{info['wins']}W {info['losses']}L"
+            if {info.get('ladderRank') is not None}: self.winrate = self.winrate + f"\nRank {info.get('ladderRank')}"
             self.rank = f"{info['tier']} {info['rank']} {info['lp']}LP"
             self.iconID = info.get('iconID')
             self.hotStreak = info.get('hotStreak')
@@ -229,23 +235,51 @@ class AccountManager(QWidget):
 
         ranked_info = None
         # hack, delete me
-        if (type(self.lastQuery) == list): self.lastQuery = int( time.time() )
         timeAfterLastQuery =  int( time.time() ) - self.lastQuery
         if (timeAfterLastQuery >= 260):  # 4 min and 20 seconds blaze it
             print(self.account_name, ' is doing a query. Time passed: ', timeAfterLastQuery)
             ranked_info = get_data(self.riot_id, self.tagline, self.region, api_key)
-        # if ranked_info is None or ranked_info.get('tier') is None:
+
+        if self.riot_id == 'test' and self.tagline == 'test':
+            print('TEST USER DETECTED!')
+            ranked_info = {
+                'tier': 'Platinum', 
+                'rank': 'IV', 
+                'lp': 88, 
+                'wins': 99, 
+                'losses': 1, 
+                'winrate': 99, 
+                'hotStreak': True, 
+                'iconID': 1234
+            }
+            if not self.lastKnownRankedInfo:
+                self.lastKnownRankedInfo = {
+                    'tier': 'Gold', 
+                    'rank': 'IV', 
+                    'lp': 1, 
+                    'wins': 99, 
+                    'losses': 1, 
+                    'winrate': 99, 
+                    'hotStreak': True, 
+                    'iconID': 1234,
+                    'ladderRank': None
+                }
+        if ranked_info and self.lastKnownRankedInfo:
+            lpNow = lpForTier[ranked_info['tier']] + lpForRank[ranked_info['rank']] + ranked_info['lp']
+            lpLastKnown = lpForTier[self.lastKnownRankedInfo['tier']] + lpForRank[self.lastKnownRankedInfo['rank']] + self.lastKnownRankedInfo['lp']
+            lpDifferenceBetweenQueries = lpNow - lpLastKnown
+
         if ranked_info:
             self.lastQuery = int( time.time() )
             self.lastKnownRankedInfo = ranked_info
             decouple_ranked_info(ranked_info)
-            tier = ranked_info['tier'].capitalize()
+            tier = ranked_info['tier']
             image_fade_path = RANKS_PATH_FADE[tier]
             image_border_path = RANKS_PATH_BORDER[tier]
 
         elif self.lastKnownRankedInfo:
             decouple_ranked_info(self.lastKnownRankedInfo)
-            saved_tier = self.lastKnownRankedInfo['tier'].capitalize()
+            saved_tier = self.lastKnownRankedInfo['tier']
             image_fade_path = RANKS_PATH_FADE[saved_tier]
             image_border_path = RANKS_PATH_BORDER[saved_tier]
 
@@ -302,30 +336,23 @@ class AccountManager(QWidget):
             self.border_label.setStyleSheet("background: transparent; border: none;")
             self.border_label.setGeometry(0, -button_height//2, border_width, border_height)
 
-            # Icon label
+            # Icon label, small rounded icon.
             self.icon_label = QLabel(self)
             self.icon_label.setGeometry(border_width // 3, button_height // 3, 50, 50)
             self.icon_label.setStyleSheet('background: transparent;')
             self.icon_label.hide()
 
-            if self.iconID:
-                try:
-                    url = f"{self.base_urls['icon']}{self.iconID}.jpg"
-                    response = requests.get(url)
-                    if response.status_code == 200:
-                        pixmap = create_circular_icon(response.content)
-                        self.icon_label.setPixmap(pixmap)
-                        self.icon_label.show()
-                except Exception as e:
-                    print(f"Failed to load iconID image: {e}")
-
-        elif self.iconID:
+        if self.iconID:
             try:
                 url = f"{self.base_urls['icon']}{self.iconID}.jpg"
                 response = requests.get(url)
                 if response.status_code == 200:
-                    image = QImage.fromData(response.content)
-                    pixmap = QPixmap.fromImage(image)
+                    if self.border_pixmap is not None:
+                        pixmap = create_circular_icon(response.content)
+                    else:
+                        # icon in full size
+                        image = QImage.fromData(response.content)
+                        pixmap = QPixmap.fromImage(image)
                     self.icon_label.setPixmap(pixmap)
                     self.icon_label.show()
             except Exception as e:
@@ -336,7 +363,7 @@ class AccountManager(QWidget):
         # Account name
         self.account_label = QLabel(self.account_name, self)
         self.account_label.setFont(QFont("Arial", 16))
-        self.account_label.setStyleSheet("color: gray; background: transparent;")
+        self.account_label.setStyleSheet("background: transparent;")
         al_start_x = button_width // 3
         al_start_y = 0 # button_height // 3
         self.account_label.setGeometry(
@@ -348,9 +375,9 @@ class AccountManager(QWidget):
 
         # Winrate
         self.winrate_label = QLabel(self.winrate, self)
-        self.winrate_label.setFont(QFont("Arial", 9))
-        self.winrate_label.setStyleSheet("color: gray; background: transparent;")
         self.winrate_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.winrate_label.setFont(QFont("Arial", 9))
+        self.winrate_label.setStyleSheet("background: transparent;")
         winrate_start_x = button_width - button_width // 3
         winrate_start_y = button_height // 2
         self.winrate_label.setGeometry(
@@ -360,12 +387,25 @@ class AccountManager(QWidget):
             winrate_start_y
         )
 
-        # Rank
-        self.rank_label = QLabel(self.rank, self)
+        # calculate difference + color
+        if lpDifferenceBetweenQueries < 0:
+            color = "red"
+            lp_text = f"(↓{lpDifferenceBetweenQueries}lp)"
+        elif lpDifferenceBetweenQueries > 0:
+            color = "lightgreen"
+            lp_text = f"(↑{lpDifferenceBetweenQueries}lp)"
+        else:
+            color = "black"
+            lp_text = ""
+
+        # combine with colored span
+        label_text = f"{self.rank} <span style='color: {color};'>{lp_text}</span>"
+
+        # set QLabel
+        self.rank_label = QLabel(label_text, self)
         self.rank_label.setFont(QFont("Arial", 9))
-        self.rank_label.setStyleSheet("color: gray; background: transparent;")
-        self.rank_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        rank_start_x = button_width - button_width // 3
+        self.rank_label.setStyleSheet("background: transparent;")
+        rank_start_x = button_width - button_width // 3 
         rank_start_y = button_height // 3
         self.rank_label.setGeometry(
             al_start_x,
