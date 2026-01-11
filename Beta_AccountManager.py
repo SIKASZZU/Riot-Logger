@@ -159,54 +159,43 @@ class AccountManager(QWidget):
     def __init__(self, user_data, width, height, radius, image_path='images/default.png', parent=None):
         super().__init__(parent)
 
-        print(f'Loaded user: {user_data['riot_id']}')
+        print(f'Loaded user: {user_data.get('riot_id')}')
 
         # Capture `app` reference from parent (MainApp) when available
         self.app = parent if (parent and hasattr(parent, 'users')) else None
 
         self.setFixedSize(width, height)
         self.radius = radius
-        self.account_name_w_tagline = f"{user_data['riot_id']}#{user_data['tagline']}"
-        self.account_name = f"{user_data['riot_id']}"
-        self.username = user_data['username']
-        self.password = user_data['password']
-        self.riot_id = user_data['riot_id']
-        self.tagline = user_data['tagline']
-        self.region = user_data['region']
-        # self.lastQuery = user_data['lastQuery']
-        # self.lastKnownRankedInfo = user_data['lastKnownRankedInfo']
-
-        try:
-            self.lastQuery = user_data['lastQuery']
-        except KeyError:
-            self.lastQuery = int( time.time() )
-            print(f'{self.account_name} has been assigned new query date. {self.lastQuery}')
-        try:
-            self.lastKnownRankedInfo = user_data['lastKnownRankedInfo']
-        except KeyError:
-            self.lastKnownRankedInfo = {}
-            print(f'{self.account_name} has assigned empty lastKnownRankedInfo data. ')
+        self.account_name_w_tagline = f"{user_data.get('riot_id')}#{user_data.get('tagline')}"
+        self.account_name = f"{user_data.get('riot_id')}"
+        self.username = user_data.get('username')
+        self.password = user_data.get('password')
+        self.riot_id = user_data.get('riot_id')
+        self.tagline = user_data.get('tagline')
+        self.region = user_data.get('region')
+        self.lastQuery = user_data.get('lastQuery') if user_data.get('lastQuery') != None else int( time.time() )
+        self.lastKnownRankedInfo = user_data.get('lastKnownRankedInfo') if user_data.get('lastKnownRankedInfo') != None else {}
+        self.iconID = user_data.get('iconID') if user_data.get('iconID') != None else None
 
         self.hotStreak = None
         self.winrate = None
         self.rank = None
-        self.iconID = None
         regionQuery = {
             'BR1': 'BR',
             'EUN1': 'EUNE',
             'EUW1': 'EUW',
             'JP1': 'JP',
             'KR': 'KR',
-            'LA1': 'LA',
-            'LA2': 'LA',
-            'ME1': 'BR',
+            'LA1': 'LA1',
+            'LA2': 'LA2',
+            'ME1': 'tra',
             'NA1': 'NA',
             'OC1': 'OCE',
-            'RU': 'BR',
-            'SG2': 'BR',
-            'TR1': 'BR',
-            'TW2': 'BR',
-            'VN2': 'BR'
+            'RU': 'tra',
+            'SG2': 'tra',
+            'TR1': 'tra',
+            'TW2': 'tra',
+            'VN2': 'tra'
         }
 
         self.base_urls = {
@@ -216,8 +205,6 @@ class AccountManager(QWidget):
 
         hotStreak_image_path = 'images/hotStreak.png'
 
-        lpDifferenceBetweenQueries = 0
-
         # Get API key from parent app; MainApp should load it once.
         api_key = None
         if self.app and getattr(self.app, 'api_key', None):
@@ -225,24 +212,46 @@ class AccountManager(QWidget):
         if not api_key:
             raise ValueError('API key not found. MainApp must set `self.api_key`.')
 
-        def decouple_ranked_info(info: dict):
-            self.winrate = f"{info['winrate']}%\n{info['wins']}W {info['losses']}L"
-            if {info.get('ladderRank') is not None}: self.winrate = self.winrate + f"\nRank {info.get('ladderRank')}"
-            self.rank = f"{info['tier']} {info['rank']} {info['lp']}LP"
-            self.iconID = info.get('iconID')
+        def assign_user_info(info: dict):
+            self.winrate = f"{info.get('winrate')}%\n{info.get('wins')}W {info.get('losses')}L"
+            if (info.get('ladderRank')):
+                ladderRank = info.get('ladderRank')
+                self.winrate = self.winrate + f"\nRank {ladderRank}"
+                # if self.lastKnownRankedInfo.get('ladderRank') != ladderRank:
+                    # rankDiff = self.lastKnownRankedInfo.get('ladderRank') - ladderRank
+                    # self.winrate = self.winrate + f" ({rankDiff})"
+            if info.get('tier'):
+                self.rank = f"{info.get('tier')} {info.get('rank')} {info.get('lp')}LP"
+            # elif summoner level < 30: display level
+            else: 
+                self.rank = 'Unranked'
             self.hotStreak = info.get('hotStreak')
-            tier = info['tier'].capitalize()
 
-        ranked_info = None
-        # hack, delete me
-        timeAfterLastQuery =  int( time.time() ) - self.lastQuery
+        def decouple_query_info(info: dict) -> dict:
+            # single variables
+            self.iconID = info.get('iconID')
+
+            # ranked info
+            rankedInfo = info.copy()
+
+            # remove single variables
+            rankedInfo.pop('iconID')
+            return rankedInfo
+
+        rankedInfo: dict = {}
+        queryInfo: dict = {}
+        queryDone: bool = False
+        timeAfterLastQuery = (int( time.time() ) - self.lastQuery)
         if (timeAfterLastQuery >= 260):  # 4 min and 20 seconds blaze it
-            print(self.account_name, ' is doing a query. Time passed: ', timeAfterLastQuery)
-            ranked_info = get_data(self.riot_id, self.tagline, self.region, api_key)
+            print(self.account_name, ' is doing a query. Time passed: ', timeAfterLastQuery / 60, 'min')
+            queryInfo = get_data(self.riot_id, self.tagline, self.region, api_key)
+            rankedInfo = decouple_query_info(queryInfo)
+            queryDone = True
+            self.lastQuery = int( time.time() )
 
         if self.riot_id == 'test' and self.tagline == 'test':
             print('TEST USER DETECTED!')
-            ranked_info = {
+            rankedInfo = {
                 'tier': 'Platinum', 
                 'rank': 'IV', 
                 'lp': 88, 
@@ -261,36 +270,39 @@ class AccountManager(QWidget):
                     'losses': 1, 
                     'winrate': 99, 
                     'hotStreak': True, 
-                    'iconID': 1234,
                     'ladderRank': None
                 }
-        if ranked_info and self.lastKnownRankedInfo:
-            lpNow = lpForTier[ranked_info['tier']] + lpForRank[ranked_info['rank']] + ranked_info['lp']
-            lpLastKnown = lpForTier[self.lastKnownRankedInfo['tier']] + lpForRank[self.lastKnownRankedInfo['rank']] + self.lastKnownRankedInfo['lp']
+
+        lpDifferenceBetweenQueries = 0
+        if rankedInfo and self.lastKnownRankedInfo:
+            lpNow = lpForTier[rankedInfo.get('tier')] + lpForRank[rankedInfo.get('rank')] + rankedInfo.get('lp')
+            lpLastKnown = lpForTier[self.lastKnownRankedInfo.get('tier')] + lpForRank[self.lastKnownRankedInfo.get('rank')] + self.lastKnownRankedInfo.get('lp')
             lpDifferenceBetweenQueries = lpNow - lpLastKnown
 
-        if ranked_info:
-            self.lastQuery = int( time.time() )
-            self.lastKnownRankedInfo = ranked_info
-            decouple_ranked_info(ranked_info)
-            tier = ranked_info['tier']
+        confirmed_unranked: bool = (queryDone and not rankedInfo.get('tier'))
+
+        image_fade_path = RANKS_PATH_FADE[rankedInfo.get('tier')]
+        image_border_path = None
+
+        if rankedInfo:
+            assign_user_info(rankedInfo)
+            self.lastKnownRankedInfo = rankedInfo
+            tier = rankedInfo.get('tier')
             image_fade_path = RANKS_PATH_FADE[tier]
             image_border_path = RANKS_PATH_BORDER[tier]
 
+        elif confirmed_unranked:
+            self.lastKnownRankedInfo = {}
+
         elif self.lastKnownRankedInfo:
-            decouple_ranked_info(self.lastKnownRankedInfo)
-            saved_tier = self.lastKnownRankedInfo['tier']
+            assign_user_info(self.lastKnownRankedInfo)
+            saved_tier = self.lastKnownRankedInfo.get('tier')
             image_fade_path = RANKS_PATH_FADE[saved_tier]
             image_border_path = RANKS_PATH_BORDER[saved_tier]
 
-        else:
-            ranked_info = 'Unranked'
-            image_fade_path = RANKS_PATH_FADE[ranked_info]
-            image_border_path = None
-
         print(f'{self.account_name} | \
               \n lastQuery: {timeAfterLastQuery} \
-              \n rI {ranked_info} \n lKRI {self.lastKnownRankedInfo}\n\n')
+              \n rankedInfo {rankedInfo} \n lKRI {self.lastKnownRankedInfo}')
 
         updated_user = {
             'username': self.username,
@@ -298,6 +310,7 @@ class AccountManager(QWidget):
             'riot_id': self.riot_id,
             'tagline': self.tagline,
             'region': self.region,
+            'iconID': self.iconID,
             'lastQuery': self.lastQuery,
             'lastKnownRankedInfo': self.lastKnownRankedInfo
         }
@@ -307,26 +320,33 @@ class AccountManager(QWidget):
             if u.get('riot_id') == self.riot_id and u.get('username') == self.username:
                 self.app.users[i].update(updated_user)
                 found = True
-                print(self.riot_id, ' has bee updated. ')
                 break
 
         if not found:
             print('Error finding user from self.app.users. Did not update user data!')
         else:
-            save_data(self.app.users)
+            save_data(self.app.users, self.riot_id)
 
-        # Load rounded image
+        print('\n')
+
+        # Load background fade, border
         self.fade_pixmap = create_fade_image(image_fade_path, (width, height), radius)
         self.border_pixmap = create_border_image(image_border_path)
 
         # --------- IMAGES --------- #
 
-        # Background label
+        # Summoner Icon
+        self.icon_label = QLabel(self)
+        self.icon_label.setStyleSheet('background: transparent;')
+        icon_label_width = 100
+        icon_label_height = 100
+        self.icon_label.setGeometry(icon_label_width // 3, 0, icon_label_width, icon_label_height)
+
+        # Background labelq
         self.fade_label = QLabel(self)
         self.fade_label.setPixmap(self.fade_pixmap)
         self.fade_label.setScaledContents(True)
         self.fade_label.setGeometry(0, 0, width, height)
-
         if self.border_pixmap is not None:
             border_width = self.border_pixmap.width()
             border_height = self.border_pixmap.height()
@@ -336,11 +356,9 @@ class AccountManager(QWidget):
             self.border_label.setStyleSheet("background: transparent; border: none;")
             self.border_label.setGeometry(0, -button_height//2, border_width, border_height)
 
-            # Icon label, small rounded icon.
             self.icon_label = QLabel(self)
-            self.icon_label.setGeometry(border_width // 3, button_height // 3, 50, 50)
             self.icon_label.setStyleSheet('background: transparent;')
-            self.icon_label.hide()
+            self.icon_label.setGeometry(border_width // 3, button_height // 3, 50, 50)
 
         if self.iconID:
             try:
@@ -350,10 +368,10 @@ class AccountManager(QWidget):
                     if self.border_pixmap is not None:
                         pixmap = create_circular_icon(response.content)
                     else:
-                        # icon in full size
-                        image = QImage.fromData(response.content)
-                        pixmap = QPixmap.fromImage(image)
+                        pixmap = create_circular_icon(response.content, circular=False, width=button_height, height=button_height)
+
                     self.icon_label.setPixmap(pixmap)
+                    self.icon_label.raise_()
                     self.icon_label.show()
             except Exception as e:
                 print(f"Failed to load iconID image: {e}")

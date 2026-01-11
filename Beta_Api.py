@@ -9,7 +9,9 @@ class RiotAPI:
             "ranked": f"https://{region}.api.riotgames.com/lol/league/v4/entries/by-puuid/",
             "account": "https://europe.api.riotgames.com",
             "summoner": f"https://{region}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/",
-            "icon": 'http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons/'
+            "icon": 'http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons/',
+            # replace 'TIER' with apex tier
+            "apex": f"https://{self.region}.api.riotgames.com/lol/league/v4/TIERleagues/by-queue/RANKED_SOLO_5x5"
         }
         self.headers = {"X-Riot-Token": self.api_key}
 
@@ -33,7 +35,7 @@ class RiotAPI:
 
         if response.status_code != 200:
             print(f"Error {response.status_code}: {response.json()}")
-            return None
+            return {}
 
         for entry in response.json():
             if entry['queueType'] == 'RANKED_SOLO_5x5':
@@ -57,7 +59,7 @@ class RiotAPI:
 
                 return data
 
-        return None
+        return {}
 
     def get_icon_id(self, puuid):
         url = f"{self.base_urls['summoner']}{puuid}" 
@@ -70,27 +72,21 @@ class RiotAPI:
         puuid = self.get_puuid(game_name, tagline)
         if not puuid:
             print("Could not retrieve PUUID.")
-            return None
+            return {}
 
         iconID = self.get_icon_id(puuid)
         ranked_info = self.get_ranked_data(puuid)
-        if ranked_info:
-            ranked_info.update({
-                'iconID': iconID
-            })
+        ranked_info.update({
+            'iconID': iconID
+        })
 
         return ranked_info
 
     def get_apex_league(self, tier: str):
         tier = tier.lower()
-        url = f"https://{self.region}.api.riotgames.com/lol/league/v4/{tier}leagues/by-queue/RANKED_SOLO_5x5"
+        url = self.base_urls['apex'].replace('TIER', tier)
         response = requests.get(url, headers=self.headers)
-
-        if response.status_code == 200:
-            return response.json().get("entries", [])
-        else:
-            print(f"Error {response.status_code}: {response.json()}")
-            return None
+        return self._handle_response(response, 'entries')
 
     def get_apex_position(self, puuid: str, tier: str):
         entries = self.get_apex_league(tier)
@@ -123,5 +119,5 @@ if __name__ == "__main__":
         raise ValueError("API key not found.")
 
     print()
-    data = get_data('Lando Verstappen', '1814', 'EUW1', api_key)
+    data = get_data('Dantes', 'Laura', 'NA1', api_key)
     print(data)

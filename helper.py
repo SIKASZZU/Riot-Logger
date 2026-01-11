@@ -53,7 +53,7 @@ lpForRank = {
 }
 
 RANKS_PATH_FADE = {
-    "Unranked":     'images/fade/temp_rounded.png',
+    None:     'images/fade/temp_rounded.png',
     "Iron":         'images/fade/iron.png',
     "Bronze":       'images/fade/bronze.png',
     "Silver":       'images/fade/silver.png',
@@ -67,7 +67,7 @@ RANKS_PATH_FADE = {
 }
 
 RANKS_PATH_BORDER = {
-    "Unranked":     'images/border/temp_rounded.png', # fix this shit, diamond as default?
+    None:     'images/border/temp_rounded.png',
     "Iron":         'images/border/iron.png',
     "Bronze":       'images/border/bronze.png',
     "Silver":       'images/border/silver.png',
@@ -124,10 +124,13 @@ def load_data():
         print('Did not find any data')
         return []
     
-def save_data(users):
-    with open(FILE_PATH, "w") as f:
-        json.dump(users, f)
-
+def save_data(users, user=None):
+    try:
+        with open(FILE_PATH, "w") as f:
+            json.dump(users, f)
+        return f'Saved {user}'
+    except Exception as e: 
+        return f'Failed saving {user} -> {e}'
 
 def hash_password(password: str) -> str:
     """Return Argon2 hash of the password plus optional pepper."""
@@ -174,9 +177,13 @@ def create_fade_image(image_path, size, radius):
     # Create rounded mask
     mask = Image.new("L", size, 0)
     draw = ImageDraw.Draw(mask)
-    draw.rounded_rectangle((0, 0, size[0], size[1]), radius, fill=255)
 
-    # Apply rounded mask to image
+    border_width = 0
+    draw.rounded_rectangle(
+                (border_width, border_width, size[0]-border_width, size[1]-border_width),
+                radius=max(0, radius - border_width),  # smaller radius inside
+                fill=255
+            )
     img.putalpha(mask)
 
     # Convert to QPixmap in-memory (avoid writing temporary files)
@@ -191,8 +198,11 @@ def create_border_image(image_path):
         print(f'ERROR! create_border_image image_path {image_path}')
         return
     abs_image_path = get_resource_path(image_path)
-    img = Image.open(abs_image_path).convert("RGBA")
-
+    try:
+        img = Image.open(abs_image_path).convert("RGBA")
+    except Exception as e:
+        print(e)
+        return None
     border_width = img.width
     border_height = img.height
     img = img.resize((round(border_width * BORDER_SCALE), round(border_height * BORDER_SCALE)), Image.Resampling.BICUBIC)
@@ -206,7 +216,7 @@ def create_border_image(image_path):
     qimg = QImage.fromData(buf.getvalue())
     return QPixmap.fromImage(qimg)
 
-def create_circular_icon(image_path):
+def create_circular_icon(image_path, circular:bool=True, width: int = 45, height: int = 45):
     """
     Takes image data (bytes or file path), creates a circular 50x50 image, and returns a QPixmap.
     """
@@ -217,16 +227,17 @@ def create_circular_icon(image_path):
     else:
         img = Image.open(image_path).convert("RGBA")
 
-    img_w = 45
-    img_h = 45
+    img_w = width
+    img_h = height
 
     img = img.resize((img_w, img_h), Image.Resampling.BICUBIC)
 
     # Create circular mask
-    mask = Image.new('L', (img_w, img_h), 0)
-    draw = ImageDraw.Draw(mask)
-    draw.ellipse((0, 0, img_w, img_h), fill=255)
-    img.putalpha(mask)
+    if circular:
+        mask = Image.new('L', (img_w, img_h), 0)
+        draw = ImageDraw.Draw(mask)
+        draw.ellipse((0, 0, img_w, img_h), fill=255)
+        img.putalpha(mask)
 
     # Convert to QPixmap
     data = io.BytesIO()

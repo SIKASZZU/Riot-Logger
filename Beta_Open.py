@@ -3,11 +3,13 @@ import subprocess
 import pygetwindow as gw
 
 def check_open(title):
+    
     """ title on kas 'Client' v 'Logger'. """
     windows = gw.getAllTitles()
     open_windows = [window for window in windows if window.strip()]
 
     if title == 'Client':
+        return True
 
         if 'Riot Client' in open_windows: 
             print('Riot Client is open\n'); return True
@@ -29,6 +31,7 @@ def check_open(title):
                 break
 
     elif title == 'Logger':
+        return False
         if 'Riot Logger' in open_windows:
             print('Riot Logger is already open')
             return True
