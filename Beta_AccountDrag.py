@@ -77,23 +77,20 @@ class DropArea(QWidget):
             else:
                 layout.insertWidget(target_idx, source_widget)
 
-            # Rebuild users list from current layout order and save
             new_users = []
             for i in range(layout.count()):
                 w = layout.itemAt(i).widget()
                 if not w:
                     continue
-                # Only include account widgets (they have riot_id attribute)
-                if hasattr(w, 'riot_id') and getattr(w, 'riot_id'):
-                    new_users.append({
-                        'riot_id': getattr(w, 'riot_id'),
-                        'tagline': getattr(w, 'tagline', ''),
-                        'region': getattr(w, 'region', ''),
-                        'username': getattr(w, 'username', ''),
-                        'password': getattr(w, 'password', '')
-                    })
+                user_info = getattr(w, 'user_data', None)
 
-            # Update app users and persist
+                print(f"--- Widget {i} ---")
+                import pprint
+                pprint.pprint(vars(w))
+
+                if user_info:
+                    new_users.append(user_info)
+
             self.app.users = new_users
             from helper import save_data
             save_data(self.app.users)

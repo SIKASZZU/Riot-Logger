@@ -216,7 +216,7 @@ def create_border_image(image_path):
     qimg = QImage.fromData(buf.getvalue())
     return QPixmap.fromImage(qimg)
 
-def create_circular_icon(image_path, circular:bool=True, width: int = 45, height: int = 45):
+def create_circular_icon(image_path, circular: bool = True, width: int = 45, height: int = 45):
     """
     Takes image data (bytes or file path), creates a circular 50x50 image, and returns a QPixmap.
     """

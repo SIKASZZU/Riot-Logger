@@ -105,9 +105,13 @@ class RiotAPI:
 
         return None
 
-def get_data(game_name, tagline, region, api_key):
-    riot_api = RiotAPI(api_key, region)
+def get_data(game_name: str, tagline: str, riot_api: RiotAPI) -> dict:
     return riot_api.get_player_data(game_name, tagline)
+
+def get_puuid(game_name: str, tagline: str, riot_api: RiotAPI) -> str:
+    url = f"{riot_api.base_urls['account']}/riot/account/v1/accounts/by-riot-id/{game_name}/{tagline}"
+    response = requests.get(url, headers=riot_api.headers)
+    return riot_api._handle_response(response, "puuid")
 
 if __name__ == "__main__":
     import os

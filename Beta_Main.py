@@ -1,5 +1,6 @@
 import sys
 import os
+import keyring
 from dotenv import load_dotenv
 
 from helper import *
@@ -30,10 +31,7 @@ class MainApp(QWidget):
         self.setStyleSheet("background-color: #242424; color: white;")
 
         layout = QVBoxLayout(self)
-
-        self.username = None
-        self.password = None
-
+\ self.service_name = "riot-acc-manager"
         # Create a scrollable area for the account buttons
         scroll_area = QScrollArea(self)
         scroll_area.setWidgetResizable(True)
@@ -75,33 +73,37 @@ class MainApp(QWidget):
 
     def create_account(self, user, button_width, button_height, button_radius):
         account_button = AccountManager(user, button_width, button_height, button_radius, parent=self)
+        account_button.user_data = user
         account_button.clicked_account.connect(self.on_signal_received)
         self.scroll_layout.addWidget(account_button)
         return account_button
 
     def on_signal_received(self, username, password):
-        self.username = username
-        self.password = password
+        try:
+            keyringPassword = keyring.get_password("riot-acc-manager", username)
+            if keyringPassword == None:
+                raise Exception
+            else:
+                password = keyringPassword
+        except Exception as e:
+            print(e, ' Using arg password next')
+
         print(f"Signal received with log in information")
-        
         # going to Beta_Riot.py now to send username, password to there.
         self.riot_client.execute(username, password)
 
 if __name__ == "__main__":
-
     if check_open('Logger') == True:
         sys.exit('*Forced exit*')
 
-    else:
+    # Load info
+    users = load_data()                   # Load user data
+    q_app = QApplication(sys.argv)        # Create QApplication instance
+    riot_client = RiotClient()            # Create RiotClient instance
+    main_app = MainApp(riot_client)       # Create MainApp instance
 
-        # Load info
-        users = load_data()                   # Load user data
-        q_app = QApplication(sys.argv)        # Create QApplication instance
-        riot_client = RiotClient()            # Create RiotClient instance
-        main_app = MainApp(riot_client)       # Create MainApp instance
+    # Actually do something now with info
+    check_open('Client')                  # Open Riot client connection
+    main_app.show()                       # Show the main app
 
-        # Actually do something now with info
-        check_open('Client')                  # Open Riot client connection
-        main_app.show()                       # Show the main app
-
-        sys.exit(q_app.exec())  # event loop
+    sys.exit(q_app.exec())  # event loop

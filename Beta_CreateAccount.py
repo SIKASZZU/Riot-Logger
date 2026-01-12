@@ -1,5 +1,8 @@
-from helper import *
+import keyring
+import time
 
+from helper import *
+from Beta_Api import RiotAPI, get_puuid, get_data
 from PyQt6.QtGui import QCursor, QPixmap
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QLineEdit, QComboBox, QStyledItemDelegate
@@ -15,10 +18,11 @@ class CreateAccount(QWidget):
     def __init__(self, app, width, height, radius, parent=None):
         super().__init__(parent)
         self.app = app
+
         self.arg_width  = width
         self.arg_height = height
         self.radius = radius
-        
+
         self.scroll_area = parent  # ScrollArea is passed as the parent
 
         self.default_height = height  # Store default height
@@ -199,15 +203,39 @@ class CreateAccount(QWidget):
         username = self.username_entry.text()
         password = self.password_entry.text()
         region = self.combo_box.currentText()
+    
+        if not all([riot_id, tagline, username, password]) or region == "Region":
+            print("Please fill all required fields!")
+            return
+
+        riot_api = RiotAPI(self.app.api_key, region)
+
+        query: dict = get_data(riot_id, tagline, riot_api)
+        puuid: str = get_puuid(riot_id, tagline, riot_api)
+        iconID: int = None
+        lastKnownRankedInfo: dict = {}
+        lastQuery = 0
+
+        if query is not None:
+            iconID = query.pop('iconID', None)
+            lastKnownRankedInfo = query
+            lastQuery = int ( time.time() )
+
+        # 1 = local, 2 = session, 3 = enterprise. # use local or enterprise, dont use session
+        keyring.get_keyring().persist = 1
+        keyring.set_password(self.app.service_name, username, password)
+
         new_user = {
+            "puuid": puuid,
+            "username": username,
+
             "riot_id": riot_id,
             "tagline": tagline,
             "region": region,
-            "username": username,
-            "password": password,
-            # Argon2 hash stored for security; plaintext kept in-memory for runtime
-            "password_hash": hash_password(password),
-            "lastKnownRankedInfo": {}
+
+            "iconID": iconID,
+            "lastQuery": lastQuery,
+            "lastKnownRankedInfo": lastKnownRankedInfo
             }
 
         # Prevent duplicates (same Riot ID + Tagline + Region)
@@ -215,12 +243,10 @@ class CreateAccount(QWidget):
             print("Duplicate account already exists!")
             return
 
-        if not riot_id or not username or not password or region == "Region":
-            print("Please fill all fields!")
-            return
-
         # Create a new AccountManager with the provided data
         new_account = self.app.create_account(new_user, self.arg_width, self.arg_height, self.radius)
+
+        print(f'new user data: {riot_id}\n {new_user}')
 
         self.app.users.append(new_user)
         save_data(self.app.users)

@@ -1,12 +1,12 @@
-import os
+import keyring
 import requests
 import webbrowser
 import time
 
-from Beta_Api import get_data
+from Beta_Api import RiotAPI, get_data
 from helper import *
 
-from PyQt6.QtGui import QPixmap, QFont, QCursor, QImage, QDrag
+from PyQt6.QtGui import QFont, QCursor, QDrag
 from PyQt6.QtCore import Qt, pyqtSignal, QMimeData
 from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QApplication
 
@@ -21,6 +21,14 @@ class AccountManager(QWidget):
             save_data(self.app.users)
         else:
             print('Warning: could not find app.users to update')
+
+        try:
+            keyring.delete_password(self.app.service_name, self.username)
+            print(f"Successfully removed password for {self.username}")
+        except keyring.errors.PasswordDeleteError:
+            print("No such entry existed (already removed or never saved)")
+        except Exception as e:
+            print(f"Failed to delete: {e}")
 
         self.setParent(None)
         self.deleteLater()
@@ -159,6 +167,15 @@ class AccountManager(QWidget):
     def __init__(self, user_data, width, height, radius, image_path='images/default.png', parent=None):
         super().__init__(parent)
 
+        # labels
+        self.fade_label = None
+        self.border_label = None
+        self.account_label = None
+        self.rank_label = None
+        self.winrate_label = None
+        self.hotStreak_label = None
+        self.icon_label = None
+
         print(f'Loaded user: {user_data.get('riot_id')}')
 
         # Capture `app` reference from parent (MainApp) when available
@@ -168,6 +185,7 @@ class AccountManager(QWidget):
         self.radius = radius
         self.account_name_w_tagline = f"{user_data.get('riot_id')}#{user_data.get('tagline')}"
         self.account_name = f"{user_data.get('riot_id')}"
+        self.puuid = user_data.get('puuid') if user_data.get('puuid') != None else None
         self.username = user_data.get('username')
         self.password = user_data.get('password')
         self.riot_id = user_data.get('riot_id')
@@ -179,7 +197,7 @@ class AccountManager(QWidget):
 
         self.hotStreak = None
         self.winrate = None
-        self.rank = None
+        self.rank = 'Unranked'
         regionQuery = {
             'BR1': 'BR',
             'EUN1': 'EUNE',
@@ -200,10 +218,10 @@ class AccountManager(QWidget):
 
         self.base_urls = {
             "icon": 'http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/profile-icons/',
-            "opgg": f'https://op.gg/lol/summoners/{regionQuery[self.region]}/'
+            "opgg": f'https://op.gg/lol/summoners/{regionQuery[self.region]}/',
+            "defaultIconPath": 'images/icon/default.png',
+            'hotStreak_image_path': 'images/hotStreak.png'
         }
-
-        hotStreak_image_path = 'images/hotStreak.png'
 
         # Get API key from parent app; MainApp should load it once.
         api_key = None
@@ -211,6 +229,7 @@ class AccountManager(QWidget):
             api_key = self.app.api_key
         if not api_key:
             raise ValueError('API key not found. MainApp must set `self.api_key`.')
+        self.riot_api = RiotAPI(api_key, self.region)
 
         def assign_user_info(info: dict):
             self.winrate = f"{info.get('winrate')}%\n{info.get('wins')}W {info.get('losses')}L"
@@ -220,17 +239,11 @@ class AccountManager(QWidget):
                 # if self.lastKnownRankedInfo.get('ladderRank') != ladderRank:
                     # rankDiff = self.lastKnownRankedInfo.get('ladderRank') - ladderRank
                     # self.winrate = self.winrate + f" ({rankDiff})"
-            if info.get('tier'):
+            if info.get('tier') is not None:
                 self.rank = f"{info.get('tier')} {info.get('rank')} {info.get('lp')}LP"
-            # elif summoner level < 30: display level
-            else: 
-                self.rank = 'Unranked'
             self.hotStreak = info.get('hotStreak')
 
-        def decouple_query_info(info: dict) -> dict:
-            # single variables
-            self.iconID = info.get('iconID')
-
+        def get_ranked_from_query(info: dict) -> dict:
             # ranked info
             rankedInfo = info.copy()
 
@@ -242,12 +255,17 @@ class AccountManager(QWidget):
         queryInfo: dict = {}
         queryDone: bool = False
         timeAfterLastQuery = (int( time.time() ) - self.lastQuery)
-        if (timeAfterLastQuery >= 260):  # 4 min and 20 seconds blaze it
+        queryTimer = 15 * 60
+        print(f"Query every {queryTimer} sec")
+        if (timeAfterLastQuery >= queryTimer):
             print(self.account_name, ' is doing a query. Time passed: ', timeAfterLastQuery / 60, 'min')
-            queryInfo = get_data(self.riot_id, self.tagline, self.region, api_key)
-            rankedInfo = decouple_query_info(queryInfo)
-            queryDone = True
-            self.lastQuery = int( time.time() )
+
+            queryInfo = get_data(self.riot_id, self.tagline, self.riot_api)
+            if queryInfo:
+                rankedInfo = get_ranked_from_query(queryInfo)
+                queryDone = True
+                self.lastQuery = int( time.time() )
+                self.iconID = queryInfo.get('iconID')
 
         if self.riot_id == 'test' and self.tagline == 'test':
             print('TEST USER DETECTED!')
@@ -283,6 +301,7 @@ class AccountManager(QWidget):
 
         image_fade_path = RANKS_PATH_FADE[rankedInfo.get('tier')]
         image_border_path = None
+        # elif summoner level < 30: display level
 
         if rankedInfo:
             assign_user_info(rankedInfo)
@@ -300,20 +319,22 @@ class AccountManager(QWidget):
             image_fade_path = RANKS_PATH_FADE[saved_tier]
             image_border_path = RANKS_PATH_BORDER[saved_tier]
 
-        print(f'{self.account_name} | \
-              \n lastQuery: {timeAfterLastQuery} \
-              \n rankedInfo {rankedInfo} \n lKRI {self.lastKnownRankedInfo}')
-
         updated_user = {
+            'puuid': self.puuid,
             'username': self.username,
-            'password': self.password,
+            
             'riot_id': self.riot_id,
             'tagline': self.tagline,
             'region': self.region,
+            
             'iconID': self.iconID,
             'lastQuery': self.lastQuery,
             'lastKnownRankedInfo': self.lastKnownRankedInfo
         }
+
+        print(f'{self.account_name} | \
+              \n lastQuery: {timeAfterLastQuery} sec ago \
+              \n data {user_data}')
 
         found = False
         for i, u in enumerate(self.app.users):
@@ -358,9 +379,9 @@ class AccountManager(QWidget):
 
             self.icon_label = QLabel(self)
             self.icon_label.setStyleSheet('background: transparent;')
-            self.icon_label.setGeometry(border_width // 3, button_height // 3, 50, 50)
+            self.icon_label.setGeometry(border_width // 3 + 1, button_height // 3 - 2, 50, 50)
 
-        if self.iconID:
+        if self.iconID != None:
             try:
                 url = f"{self.base_urls['icon']}{self.iconID}.jpg"
                 response = requests.get(url)
@@ -369,12 +390,25 @@ class AccountManager(QWidget):
                         pixmap = create_circular_icon(response.content)
                     else:
                         pixmap = create_circular_icon(response.content, circular=False, width=button_height, height=button_height)
+                else:
+                    print(self.base_urls['defaultIconPath'])
+                    if self.border_pixmap is not None:
+                        pixmap = create_circular_icon(self.base_urls['defaultIconPath'])
+                    else:
+                        pixmap = create_circular_icon(self.base_urls['defaultIconPath'], circular=False, width=button_height, height=button_height)
 
-                    self.icon_label.setPixmap(pixmap)
-                    self.icon_label.raise_()
-                    self.icon_label.show()
-            except Exception as e:
-                print(f"Failed to load iconID image: {e}")
+                self.icon_label.setPixmap(pixmap)
+                self.icon_label.raise_()
+                self.icon_label.show()
+
+                if response.status_code != 200:
+                    raise Exception
+
+            except Exception:
+                print(f"Failed to load iconID image:")
+                print(f'self.iconID: {self.iconID}')
+                print(f'response code: {response.status_code}')
+                print()
 
         # Text labels
 
@@ -434,7 +468,7 @@ class AccountManager(QWidget):
 
         # Hotstreak
         if (self.hotStreak):
-            self.hotStreak_pixmap = create_hot_streak(hotStreak_image_path)
+            self.hotStreak_pixmap = create_hot_streak(self.base_urls['hotStreak_image_path'])
             self.hotStreak_label = QLabel(self)
             self.hotStreak_label.setPixmap(self.hotStreak_pixmap)
             self.hotStreak_label.setGeometry(0, round(button_height // 2.5), self.hotStreak_pixmap.width(), self.hotStreak_pixmap.height())
@@ -443,7 +477,7 @@ class AccountManager(QWidget):
             self.hotStreak_label.raise_()
 
         self.opgg_btn = QPushButton("op.gg", self)
-        self.opgg_btn.setGeometry(button_width - 64, 6, 48, 20)
+        self.opgg_btn.setGeometry(winrate_start_x, 6, button_width - winrate_start_x, 20)
         self.opgg_btn.setStyleSheet("background: rgba(0,0,0,0); color: #cfcfcf; border: none; font-size:10px;")
         self.opgg_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.opgg_btn.clicked.connect(self.open_opgg)
