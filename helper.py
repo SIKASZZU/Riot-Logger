@@ -99,15 +99,19 @@ REGIONS = [
     'VN2',
 ]
 
+USE_REAL: bool = True
 
 # Get path to Documents/riot_logger/users_data.json
-def get_data_path():
+def get_data_path(file: str):
     documents = Path.home() / "Documents"
     data_folder = documents / "Riot Logger"
     data_folder.mkdir(exist_ok=True)
-    return data_folder / "users_data.json"
+    return data_folder / file
 
-FILE_PATH = get_data_path()
+
+REAL_FILE = "users_data.json"
+TEST_FILE = "users_data_test.json"
+FILE_PATH = get_data_path(REAL_FILE if USE_REAL == True else TEST_FILE)
 
 # Load optional pepper for password hashing from getenv.env
 load_dotenv('getenv.env')
@@ -155,14 +159,16 @@ def get_resource_path(relative_path):
 def create_fade_image(image_path, size, radius):
     """Creates a rounded image with PIL and converts it to QPixmap."""
     if image_path == None:
-        print(f'ERROR! create_fade_image image_path {image_path}')
+        # print(f'ERROR! create_fade_image image_path {image_path}')
         return
     
     if size[0] <= 0 or size[1] <= 0 or size == None:
+        # Rare misuse error, so just keep it printed.
         print(f'ERROR! create_fade_image size {size}')
         return
 
     if radius < 0 or radius == None:
+        # Rare misuse error, so just keep it printed.
         print(f'ERROR! create_fade_image radius {radius}')
         return
 
@@ -195,7 +201,7 @@ def create_fade_image(image_path, size, radius):
 def create_border_image(image_path):
     """Creates a rounded image with PIL and converts it to QPixmap."""
     if image_path == None:
-        print(f'ERROR! create_border_image image_path {image_path}')
+        # print(f'ERROR! create_border_image image_path {image_path}')
         return
     abs_image_path = get_resource_path(image_path)
     try:
@@ -216,7 +222,7 @@ def create_border_image(image_path):
     qimg = QImage.fromData(buf.getvalue())
     return QPixmap.fromImage(qimg)
 
-def create_circular_icon(image_path, circular: bool = True, width: int = 45, height: int = 45):
+def create_circular_icon(image_path, circular: bool = True, width: int = 60, height: int = 60):
     """
     Takes image data (bytes or file path), creates a circular 50x50 image, and returns a QPixmap.
     """

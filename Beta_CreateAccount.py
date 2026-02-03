@@ -204,7 +204,7 @@ class CreateAccount(QWidget):
         password = self.password_entry.text()
         region = self.combo_box.currentText()
     
-        if not all([riot_id, tagline, username, password]) or region == "Region":
+        if not all([riot_id, tagline]) or region == "Region":
             print("Please fill all required fields!")
             return
 
@@ -222,7 +222,7 @@ class CreateAccount(QWidget):
             lastQuery = int ( time.time() )
 
         # 1 = local, 2 = session, 3 = enterprise. # use local or enterprise, dont use session
-        keyring.get_keyring().persist = 1
+        # keyring.set_keyring(WinVaultKeyring())
         keyring.set_password(self.app.service_name, username, password)
 
         new_user = {

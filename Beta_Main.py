@@ -31,7 +31,8 @@ class MainApp(QWidget):
         self.setStyleSheet("background-color: #242424; color: white;")
 
         layout = QVBoxLayout(self)
-\ self.service_name = "riot-acc-manager"
+        self.service_name = "riot-acc-manager"
+
         # Create a scrollable area for the account buttons
         scroll_area = QScrollArea(self)
         scroll_area.setWidgetResizable(True)
@@ -41,7 +42,7 @@ class MainApp(QWidget):
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         scroll_content = DropArea(scroll_area, self)
-        self.scroll_layout = QVBoxLayout(scroll_content)
+        self.scroll_layout = QVBoxLayout(scroll_content) 
         scroll_area.setWidget(scroll_content)
 
         # Load API key once for the app
@@ -59,7 +60,7 @@ class MainApp(QWidget):
 
         # max_accounts_visible = 6
         # create_account_count = max_accounts_visible - len(self.users)
-        # for i in range(create_account_count):
+        # for i in range(create_account_count): 
         #    create_account_widget = CreateAccount(self, button_width, button_height, button_radius, scroll_area)
         #    self.scroll_layout.addWidget(create_account_widget)
 
@@ -86,7 +87,10 @@ class MainApp(QWidget):
             else:
                 password = keyringPassword
         except Exception as e:
-            print(e, ' Using arg password next')
+            if password:
+                print(e, ' Using arg password next')
+            else:
+                print('No password found anywhere.')
 
         print(f"Signal received with log in information")
         # going to Beta_Riot.py now to send username, password to there.
@@ -97,7 +101,7 @@ if __name__ == "__main__":
         sys.exit('*Forced exit*')
 
     # Load info
-    users = load_data()                   # Load user data
+    # users = load_data()                   # Load user data
     q_app = QApplication(sys.argv)        # Create QApplication instance
     riot_client = RiotClient()            # Create RiotClient instance
     main_app = MainApp(riot_client)       # Create MainApp instance

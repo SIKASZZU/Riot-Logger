@@ -27,8 +27,7 @@ class RiotClient:
         self.width  = 0
         self.height = 0
 
-        self.random_sleep = random.uniform(0.002, 0.005)
-
+        self.random_typing_sleep = random.uniform(0.002, 0.005)
 
     def send_info(self, scaled_coords, username, password):
         scaled_user_xy, scaled_pass_xy, scaled_login_button_xy = scaled_coords
@@ -37,23 +36,26 @@ class RiotClient:
         adjusted_pass_xy = (self.left + scaled_pass_xy[0], self.top + scaled_pass_xy[1])
         adjusted_login_button_xy = (self.left + scaled_login_button_xy[0], self.top + scaled_login_button_xy[1])
 
-        time.sleep(0.5)  # wait a little to give riot client time to open fully.
-        
+        time.sleep(3)  # wait a little to give riot client time to open fully.
+        print('Sending info now.')
+
         # Click and type username
         self.send_click(adjusted_user_xy[0], adjusted_user_xy[1])
-        time.sleep(self.random_sleep)
+        time.sleep(self.random_typing_sleep)
         self.send_text(username)
 
         # Click and type password
         self.send_click(adjusted_pass_xy[0], adjusted_pass_xy[1])
-        time.sleep(self.random_sleep)
+        time.sleep(self.random_typing_sleep)
         self.send_text(password)
 
         # Click the login button
         self.send_click(adjusted_login_button_xy[0], adjusted_login_button_xy[1])
 
-
     def send_click(self, coords_x, coord_y):
+
+        self.hwnd = win32gui.FindWindow(None, self.riot_window.title)
+
         client_x, client_y = win32gui.ScreenToClient(self.hwnd, (coords_x, coord_y))
         lParam = win32api.MAKELONG(client_x, client_y)
         win32gui.PostMessage(self.hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lParam)
@@ -64,15 +66,16 @@ class RiotClient:
         """Send text to a window using SendMessage."""
         for char in text:
             win32api.SendMessage(self.hwnd, win32con.WM_CHAR, ord(char), 0)
-            time.sleep(self.random_sleep)  # Small delay to simulate natural typing
+            # time.sleep(self.random_typing_sleep)
     
 
+    # before this function, riot client has to be already opened.
     def scale(self):
-
         # kirjuta self valued yle, sest i dont fucking know. 
         # see shit crashib muidu, kui riot juba lahti ja appi avad ja yritad logida.
         self.riot_window = gw.getWindowsWithTitle('Riot Client')[0]
         self.hwnd = win32gui.FindWindow(None, self.riot_window.title)
+        # see hwnd onlihstalt temp loading bootstrpp id
         self.left, self.top, self.width, self.height = self.riot_window.left, self.riot_window.top, self.riot_window.width, self.riot_window.height
 
         if self.riot_window.width == self.normalized_size[0] and self.riot_window.height == self.normalized_size[1]:
@@ -102,11 +105,14 @@ class RiotClient:
 
 
     def execute(self, username, password):
-        
+
         # FIXME: siin on mingi veider bug, et kui windowi ei ole v midagi taolist ss crashib.
         boolean_is_open = check_open('Client')
-        if boolean_is_open == False:  return               # League of Legendi ei saa andmeid kirjutada. Return
-        
+        if boolean_is_open == False:
+            print('boolean_is_open', boolean_is_open)
+            # League of Legendi ei saa andmeid kirjutada. Return
+            return
+
         scaled_coords = self.scale()                       # return user_xy, pass_xy and login_xy coords relative to riot client window size
         self.send_info(scaled_coords, username, password)  # use scaled coords to type log in info and click log in
 

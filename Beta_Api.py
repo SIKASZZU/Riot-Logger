@@ -15,6 +15,11 @@ class RiotAPI:
         }
         self.headers = {"X-Riot-Token": self.api_key}
 
+    def check_key_validation(self):
+        if self.get_puuid('ZØDIACSIGNCAŃCER', 'EUW'):
+            return True
+        return False
+
     @staticmethod
     def _handle_response(response, key):
         if response.status_code == 200:
@@ -71,7 +76,7 @@ class RiotAPI:
 
         puuid = self.get_puuid(game_name, tagline)
         if not puuid:
-            print("Could not retrieve PUUID.")
+            print(f"Could not retrieve PUUID.->{game_name}#{tagline}")
             return {}
 
         iconID = self.get_icon_id(puuid)
@@ -123,5 +128,10 @@ if __name__ == "__main__":
         raise ValueError("API key not found.")
 
     print()
-    data = get_data('Dantes', 'Laura', 'NA1', api_key)
+    # info who you want to test with
+    gameName = 'g h c a p o t b'
+    tagLine = 'FF333'
+    region = 'EUW1'
+    riotApi = RiotAPI(api_key, region)
+    data = get_data(gameName, tagLine, riotApi)
     print(data)
