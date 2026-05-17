@@ -49,7 +49,7 @@ class MainApp(QWidget):
         load_dotenv('getenv.env')
         self.api_key = os.getenv('api_key')
         if not self.api_key:
-            raise ValueError('API key not found. Please set api_key in getenv.env')
+            raise ValueError('API key not found. Please set "api_key" in getenv.env')
 
         self.users = load_data()  # Load user data
         print('User count: ', len(self.users))
